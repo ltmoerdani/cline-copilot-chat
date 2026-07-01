@@ -1,0 +1,6 @@
+node_modules/
+out/
+*.vsix
+.DS_Store
+scripts/validate-models.mjs
+scripts/validate-models.mjs.map
