@@ -26,3 +26,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Shared diagnostics** command showing models from both providers in a single Markdown report.
 - **Custom logo** combining Cline and Copilot branding.
 
+### Fixed
+
+- **`__prewarm__` API key cache leak.** The pre-warmed API key (set during `activate()`) was never removed after first use, allowing it to persist as a stale fallback even after the user cleared their API key via the Manage Provider command. Fixed by deleting the `"__prewarm__"` entry from the in-memory cache immediately after first use. `[Extension]`
+- **Dead `createUsageDataPart` function in streaming.** VS Code's `LanguageModelChatProvider` API defines `LanguageModelResponsePart` as `TextPart | ToolCallPart | ToolResultPart | DataPart` — there is no usage reporting type. The function created a `usage` object then returned `LanguageModelTextPart("")` via an `as unknown as` cast, producing a silent no-op on every response. Removed the function entirely. Token usage is now logged to the output channel (`[usage] prompt=X completion=Y cached=Z`) for debugging via the **Output** panel. `[Streaming]`
+- **Vendor conflict** with `opencode-copilot-chat`: selected the `cline-copilot-chat` vendor ID up front to avoid collision.
+- **Models not visible in chat picker**: set `toolCalling: true` (Copilot Chat filters out models without tool calling support).
+- **API key resolution on first picker load**: added SecretStorage fallback when `configuration=null`.
+- **Multi-turn message format**: skip spurious empty user messages, use `content: null` (not `""`) for assistant tool-call messages — fixes empty responses on turn 2+.
+- **Infinite tool loop on non-native models**: accumulate streaming tool call deltas and only emit on `finish_reason === "tool_calls"` — prevents premature emission of incomplete tool calls.
+
+### Removed
+
+- All OpenCode-related code, providers, commands, and configuration (forked from `opencode-copilot-chat`, stripped to Cline-only).
+

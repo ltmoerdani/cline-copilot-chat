@@ -2,10 +2,10 @@
 
 # 🪶 Cline Copilot Chat
 
-### **Supercharge Copilot** with 10 frontier open-weight models
-DeepSeek V4 · Qwen 3.7 · MiMo V2.5 · Kimi K2.7 · GLM 5.2 · MiniMax M3 — all in your native model picker
+### **Supercharge Copilot** with 33 frontier models
+DeepSeek V4 · Claude · GPT · Gemini · Grok · Qwen · MiMo · Kimi · GLM · Mistral · Llama · Sonar · Command R+
 
-**$9.99/mo** · 2-5x rate limits · One API key · Copilot Chat + Agent Mode
+**Two providers, one key** · Pay-per-use or subscription · Free model available · Copilot Chat + Agent Mode
 
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.120%2B-007ACC?logo=visualstudiocode&logoColor=white)](https://code.visualstudio.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -19,17 +19,14 @@ DeepSeek V4 · Qwen 3.7 · MiMo V2.5 · Kimi K2.7 · GLM 5.2 · MiniMax M3 — a
 
 > ### 💡 What is this?
 >
-> Copilot Chat ships with GitHub's built-in models. This extension **unlocks 10 more frontier models** directly in the same model picker — no new panels, no new workflows.
+> This extension adds **two providers** to Copilot Chat's model picker — **Cline** (pay-per-use, 23 models) and **ClinePass** ($9.99/mo subscription, 10 curated models). Same API key, same endpoint, one extension.
 >
-> | What you get | Details |
-> |---|---|
-> | **10 open-weight models** | DeepSeek V4, Qwen 3.7, MiMo V2.5, Kimi K2.7, GLM 5.2, MiniMax M3 — all curated |
-> | **Native integration** | Appear in Copilot Chat's model picker. Use Chat, Agent Mode, inline assist — same UX |
-> | **2-5× rate limits** | ClinePass flat $9.99/mo beats per-token pricing on any single model |
-> | **One API key** | One subscription, one endpoint (`api.cline.bot`), zero config |
-> | **Future-proof** | New Cline-native models land on the same endpoint — no code changes needed |
+> | Provider | Billing | Models | Best for |
+> |---|---|---|---|
+> | **Cline** | Pay-per-use | 23 models (DeepSeek, GPT, Gemini, Grok, Qwen, Mistral, Llama, Sonar, Command R+, …) | Flexibility — pick any model, pay per token |
+> | **ClinePass** | $9.99/mo flat | 10 curated open-weight models with 2–5× rate limits | Heavy usage — flat rate, no surprises |
 >
-> **Think of it as Copilot + the entire open-weight frontier, for $9.99/mo.**
+> **One API key works for both.** Start with the free model (`DeepSeek V4 Flash`) to test, then upgrade as needed.
 
 ---
 
@@ -38,34 +35,32 @@ DeepSeek V4 · Qwen 3.7 · MiMo V2.5 · Kimi K2.7 · GLM 5.2 · MiniMax M3 — a
 ```text
 1.  Install GitHub Copilot Chat (free) ──────────────────────────── ✓
 2.  Install this extension ──────────────────────────────────────── ✓
-3.  Subscribe to ClinePass → app.cline.bot ──────────────────────── ✓
-4.  Create API key → app.cline.bot → Settings → API Keys ───────── ✓
-5.  Open Copilot Chat → model picker → select a Cline model ────── ✓
-6.  Paste API key when prompted → CHAT 🎉
+3.  Get API key → app.cline.bot → Settings → API Keys ──────────── ✓
+4.  Open Copilot Chat → model picker → select a Cline model ────── ✓
+5.  Paste API key when prompted → CHAT 🎉
 ```
+
+> **No subscription required to start** — `DeepSeek V4 Flash` is free and works immediately with just an API key.
 
 <details>
 <summary><b>📖 Detailed step-by-step</b></summary>
 
 1. **Install [GitHub Copilot Chat](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat)** — free, requires only a GitHub account.
 2. **Install this extension** — press `F5` in this repo for dev mode, or install the `.vsix` file.
-3. **Subscribe to ClinePass:**
-   - Go to [app.cline.bot/dashboard/subscription](https://app.cline.bot/dashboard/subscription?personal=true)
-   - Subscribe for **$4.99 first month** (then $9.99/mo)
-4. **Create an API key:**
+3. **Create an API key:**
    - Go to [app.cline.bot](https://app.cline.bot) → **Settings** → **API Keys**
    - Click **Create API Key** and copy it immediately
-5. **Open Copilot Chat** (Cmd/Ctrl+Shift+I, or click the Copilot icon).
-6. **Click the model picker** (current model name) → **Add Models…**
-7. **Select "Cline"** from the provider list.
-8. **Paste your API key** when prompted (stored securely in VS Code SecretStorage).
-9. **Pick the models** you want enabled.
-10. **Select any Cline model** from the picker and start chatting. 🚀
+4. **Open Copilot Chat** (Cmd/Ctrl+Shift+I, or click the Copilot icon).
+5. **Click the model picker** (current model name) → **Add Models…**
+6. **Select "Cline" or "ClinePass"** from the provider list.
+7. **Paste your API key** when prompted (stored securely in VS Code SecretStorage).
+8. **Select a model** and start chatting. 🚀
 
 > **💡 Tips:**
 > - Your API key is stored in VS Code SecretStorage — it never leaves your machine.
+> - One key works for both Cline (pay-per-use) and ClinePass (subscription).
 > - Run **Cline Copilot Chat: Set API Key** command to update your key at any time.
-> - Run **Cline Copilot Chat: Diagnostics** from the Manage panel to verify your key works.
+> - Run **Cline Copilot Chat: Diagnostics** to inspect registered model metadata.
 
 </details>
 
@@ -73,24 +68,60 @@ DeepSeek V4 · Qwen 3.7 · MiMo V2.5 · Kimi K2.7 · GLM 5.2 · MiniMax M3 — a
 
 ## 🧠 Models
 
-10 curated open weight models, all included in the $9.99/mo subscription. No per-token charges.
+### Cline — Pay-Per-Use (23 models)
+
+Models are billed per token. No subscription required — just an API key and credits.
+
+| Model | ID | Context | Max Output |
+|---|---|---|---|
+| **DeepSeek V4 Flash** ⭐ | `deepseek/deepseek-v4-flash` | 1M | 384K |
+| **DeepSeek V4 Pro** | `deepseek/deepseek-v4-pro` | 1M | 384K |
+| **DeepSeek V3** | `deepseek/deepseek-v3` | 64K | 8K |
+| **DeepSeek R1** | `deepseek/deepseek-r1` | 64K | 16K |
+| **DeepSeek Chat** | `deepseek/deepseek-chat` | 64K | 8K |
+| **GPT-4o** | `openai/gpt-4o` | 128K | 16K |
+| **GPT-5** | `openai/gpt-5` | 256K | 16K |
+| **o3** | `openai/o3` | 200K | 100K |
+| **Gemini 2.5 Pro** | `google/gemini-2.5-pro` | 1M | 65K |
+| **Grok 3** | `xai/grok-3` | 131K | 16K |
+| **Grok 4** | `xai/grok-4` | 256K | 16K |
+| **GLM 5.2** | `zai/glm-5.2` | 1M | 131K |
+| **Kimi K2.7 Code** | `moonshot/kimi-k2.7-code` | 256K | 262K |
+| **Kimi K2.6** | `moonshot/kimi-k2.6` | 256K | 65K |
+| **MiMo V2.5** | `mimo/mimo-v2.5` | 1M | 128K |
+| **MiMo V2.5 Pro** | `mimo/mimo-v2.5-pro` | 1M | 128K |
+| **MiniMax M3** | `minimax/minimax-m3` | 192K | 131K |
+| **Qwen3.7 Max** | `qwen/qwen3.7-max` | 1M | 65K |
+| **Qwen3.7 Plus** | `qwen/qwen3.7-plus` | 1M | 65K |
+| **Mistral Large** | `mistral/mistral-large` | 128K | 8K |
+| **Llama 4 Maverick** | `meta/llama-4-maverick` | 1M | 8K |
+| **Sonar Pro** | `perplexity/sonar-pro` | 127K | 8K |
+| **Command R+** | `cohere/command-r-plus` | 128K | 4K |
+
+> ⭐ **Free model** — `deepseek/deepseek-v4-flash` returns 200 OK even with $0 balance.
+
+> All model IDs validated directly against the Cline API. `anthropic/claude-*` models are NOT currently available on Cline's API despite being listed in their docs.
+
+### ClinePass — $9.99/mo Subscription (10 models)
+
+Curated open-weight models with 2–5× rate limits vs direct API access. No per-token charges.
 
 | Model | ID | Context | Max Output | Vision | Reasoning |
 |---|---|---|---|---|---|
-| **DeepSeek V4 Flash** | `cline/deepseek-v4-flash` | 1M | 384K | ❌ | ✅ |
-| **DeepSeek V4 Pro** | `cline/deepseek-v4-pro` | 1M | 384K | ❌ | ✅ |
-| **GLM 5.2** | `cline/glm-5.2` | 1M | 131K | ✅ | ✅ |
-| **Kimi K2.7 Code** | `cline/kimi-k2.7-code` | 256K | 262K | ✅ | ✅ |
-| **Kimi K2.6** | `cline/kimi-k2.6` | 256K | 65K | ✅ | ✅ |
-| **MiMo V2.5** | `cline/mimo-v2.5` | 1M | 128K | ✅ | ✅ |
-| **MiMo V2.5 Pro** | `cline/mimo-v2.5-pro` | 1M | 128K | ✅ | ✅ |
-| **MiniMax M3** | `cline/minimax-m3` | 192K | 131K | ✅ | ✅ |
-| **Qwen3.7 Max** | `cline/qwen3.7-max` | 1M | 65K | ❌ | ✅ |
-| **Qwen3.7 Plus** | `cline/qwen3.7-plus` | 1M | 65K | ✅ | ✅ |
+| **DeepSeek V4 Flash** | `cline-pass/deepseek-v4-flash` | 1M | 384K | ❌ | ✅ |
+| **DeepSeek V4 Pro** | `cline-pass/deepseek-v4-pro` | 1M | 384K | ❌ | ✅ |
+| **GLM 5.2** | `cline-pass/glm-5.2` | 1M | 131K | ✅ | ✅ |
+| **Kimi K2.7 Code** | `cline-pass/kimi-k2.7-code` | 256K | 262K | ✅ | ✅ |
+| **Kimi K2.6** | `cline-pass/kimi-k2.6` | 256K | 65K | ✅ | ✅ |
+| **MiMo V2.5** | `cline-pass/mimo-v2.5` | 1M | 128K | ✅ | ✅ |
+| **MiMo V2.5 Pro** | `cline-pass/mimo-v2.5-pro` | 1M | 128K | ✅ | ✅ |
+| **MiniMax M3** | `cline-pass/minimax-m3` | 192K | 131K | ✅ | ✅ |
+| **Qwen3.7 Max** | `cline-pass/qwen3.7-max` | 1M | 65K | ❌ | ✅ |
+| **Qwen3.7 Plus** | `cline-pass/qwen3.7-plus` | 1M | 65K | ✅ | ✅ |
 
-Specs verified from official provider docs (DeepSeek API, Alibaba Bailian, Moonshot, MiniMax).
+> Subscribe at [app.cline.bot/dashboard/subscription](https://app.cline.bot/dashboard/subscription?personal=true)
 
-### Reference Pricing
+### ClinePass Reference Pricing
 
 You pay a flat $9.99/mo. These per-token rates are for quota comparison only:
 
@@ -113,13 +144,14 @@ You pay a flat $9.99/mo. These per-token rates are for quota comparison only:
 
 | Feature | Details |
 |---|---|
-| 🔌 **Native Copilot Chat** | Models appear in the standard model picker — no separate panel |
+| 🔌 **Native Copilot Chat** | Both providers appear in the standard model picker — no separate panel |
+| 💳 **Dual billing** | Pay-per-use (Cline) or subscription (ClinePass) — choose per model |
 | 🧠 **Thinking mode** | Per-model reasoning controls (DeepSeek, GLM, Kimi, MiniMax, MiMo, Qwen) |
-| 🔒 **Secure** | API key stored in VS Code SecretStorage |
+| 🔒 **Secure** | API key stored in VS Code SecretStorage — shared across both providers |
 | ⚡ **Fast streaming** | Server-Sent Events for real-time response delivery |
 | 🎯 **Smart defaults** | Temperature, timeout, and streaming idle timeout configurable |
 | 📊 **Diagnostics** | Run **Cline Copilot Chat: Diagnostics** to inspect model metadata |
-| 🧩 **Future-proof** | New Cline-native models on `api.cline.bot` work without code changes |
+| 🧩 **Future-proof** | New models on `api.cline.bot` work without code changes |
 
 ---
 
@@ -140,13 +172,19 @@ You pay a flat $9.99/mo. These per-token rates are for quota comparison only:
 ## ❓ FAQ
 
 **How is this different from installing Cline?**
-[Cline](https://cline.bot) is a full autonomous coding agent with file editing, terminal access, and browser control. This extension is different — it **supercharges your existing Copilot Chat** with 10 frontier open-weight models. Same model picker, same Chat + Agent Mode, just way more powerful models to choose from.
+[Cline](https://cline.bot) is a full autonomous coding agent with file editing, terminal access, and browser control. This extension is different — it **adds models to your existing Copilot Chat** picker. Same Chat + Agent Mode, just way more models.
 
-**Why not just use Copilot's built-in models?**
-Copilot's free tier gives you a few models. This unlocks the entire open-weight frontier — DeepSeek V4, Qwen 3.7, MiMo V2.5, Kimi K2.7, GLM 5.2, MiniMax M3 — all for a flat $9.99/mo. That's 2-5× rate limits vs direct API access, with zero per-token surprises.
+**What's the difference between Cline and ClinePass?**
+Same API key, same endpoint — different billing. **Cline** is pay-per-use (credits, 23 models including GPT, Gemini, Grok). **ClinePass** is a $9.99/mo flat subscription (10 curated open-weight models with 2–5× rate limits).
+
+**Can I use this without paying anything?**
+Yes. `DeepSeek V4 Flash` is free — returns 200 OK even with $0 balance. Just create an API key at [app.cline.bot](https://app.cline.bot).
 
 **Can I use this with Copilot Agent Mode?**
-Yes. All 10 models support tool calling (confirmed via Alibaba Bailian docs) and work in both Chat and Agent Mode — so you get the full Copilot experience with frontier models.
+Yes. All models support tool calling and work in both Chat and Agent Mode.
+
+**Why not just use Copilot's built-in models?**
+Copilot's free tier gives you a few models. This unlocks the entire open-weight frontier — 33 models from 12 providers — with the choice of pay-per-use or flat-rate subscription.
 
 **What about rate limits?**
 ClinePass gives you 2-5× the standard API rate limits. Usage is measured against 5-hour rolling, weekly, and monthly windows. Check your usage at [app.cline.bot](https://app.cline.bot).

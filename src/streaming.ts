@@ -222,14 +222,18 @@ export async function streamChatCompletions(
           parts.push(...toolParts);
         }
 
-        // Emit usage data when available
+        // Log usage data to output channel (VS Code LanguageModelChatProvider
+        // API does not expose a usage reporting type, so this is for diagnostics only).
         if (isRecord(data.usage)) {
-          const usage = data.usage;
-          parts.push(createUsageDataPart(
-            typeof usage.prompt_tokens === "number" ? usage.prompt_tokens : undefined,
-            typeof usage.completion_tokens === "number" ? usage.completion_tokens : undefined,
-            typeof usage.cached_tokens === "number" ? usage.cached_tokens : undefined,
-          ));
+          const u = data.usage;
+          const parts = [
+            typeof u.prompt_tokens === "number" ? `prompt=${u.prompt_tokens}` : null,
+            typeof u.completion_tokens === "number" ? `completion=${u.completion_tokens}` : null,
+            typeof u.cached_tokens === "number" ? `cached=${u.cached_tokens}` : null,
+          ].filter(Boolean);
+          if (parts.length > 0) {
+            options.output?.appendLine(`[usage] ${parts.join(" ")}`);
+          }
         }
       }
 
@@ -282,12 +286,15 @@ export async function streamChatCompletions(
       }
 
       if (isRecord(data.usage)) {
-        const usage = data.usage;
-        parts.push(createUsageDataPart(
-          typeof usage.prompt_tokens === "number" ? usage.prompt_tokens : undefined,
-          typeof usage.completion_tokens === "number" ? usage.completion_tokens : undefined,
-          typeof usage.cached_tokens === "number" ? usage.cached_tokens : undefined,
-        ));
+        const u = data.usage;
+        const uParts = [
+          typeof u.prompt_tokens === "number" ? `prompt=${u.prompt_tokens}` : null,
+          typeof u.completion_tokens === "number" ? `completion=${u.completion_tokens}` : null,
+          typeof u.cached_tokens === "number" ? `cached=${u.cached_tokens}` : null,
+        ].filter(Boolean);
+        if (uParts.length > 0) {
+          options.output?.appendLine(`[usage] ${uParts.join(" ")}`);
+        }
       }
 
       return parts;
@@ -458,18 +465,4 @@ async function streamChatResponse(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function createUsageDataPart(
-  promptTokens?: number,
-  completionTokens?: number,
-  cachedTokens?: number,
-): vscode.LanguageModelResponsePart {
-  const usage: Record<string, unknown> = {};
-  if (promptTokens !== undefined) usage.inputTokens = promptTokens;
-  if (completionTokens !== undefined) usage.outputTokens = completionTokens;
-  if (cachedTokens !== undefined) usage.cachedTokens = cachedTokens;
-
-  // Use internal data part for usage reporting
-  return new vscode.LanguageModelTextPart("") as unknown as vscode.LanguageModelResponsePart;
 }

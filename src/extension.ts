@@ -242,9 +242,18 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       apiKey =
         this.apiKeysByModelId.get(model.id) ??
         this.apiKeysByModelId.get(model.rawModelId) ??
-        this.apiKeysByModelId.get(`${this.config.vendor}:${model.rawModelId}`) ??
-        this.apiKeysByModelId.get("__prewarm__");
-      if (apiKey) apiKeySource = "cache";
+        this.apiKeysByModelId.get(`${this.config.vendor}:${model.rawModelId}`);
+      if (apiKey) {
+        apiKeySource = "cache";
+      } else {
+        // Fallback to pre-warmed key (set during activate). Delete after use to
+        // prevent stale key lingering if the user later clears their API key.
+        apiKey = this.apiKeysByModelId.get("__prewarm__");
+        if (apiKey) {
+          apiKeySource = "prewarm";
+          this.apiKeysByModelId.delete("__prewarm__");
+        }
+      }
     }
     if (!apiKey) {
       apiKey = await resolveStoredApiKey(this.context.secrets);

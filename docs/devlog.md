@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Last Session** | 2026-07-02 (Session 5) |
-| **Worked On** | Initial build complete. Dual provider architecture (Cline pay-per-use + ClinePass subscription) fully functional. 23 pay-per-use models validated against API. CHANGELOG consolidated to single v0.1.0 release. All opencode references removed. |
-| **Stopped At** | `main` at v0.1.0. Both providers working: ClinePass (10 models, subscription) + Cline (23 models, pay-per-use). |
-| **Next Action** | → Consider marketplace publish. → Add more models as Cline API expands. → Re-test `anthropic/claude-*` periodically (may be added later). |
+| **Last Session** | 2026-07-02 (Session 6) |
+| **Worked On** | Full codebase audit (8 source files, ~1,200 lines). Deep analysis covering architecture, security, edge cases, and VS Code API compliance. Verified 7 potential bugs against codebase + internet research. Fixed 2 confirmed issues: (1) `__prewarm__` API key cache leak, (2) dead `createUsageDataPart` code removed with usage logging preserved in output channel. |
+| **Stopped At** | `main` at v0.1.0. Zero compile errors. 2 bugs fixed, 5 false positives ruled out with evidence. |
+| **Next Action** | → Consider marketplace publish. → Add more models as Cline API expands. → Consider adding ESLint + Prettier for code quality guardrails. |
 | **Open Issues** | — |
 
 ---
@@ -130,6 +130,7 @@ _None._
 
 | ID | Tag | Task | Time | Commit | Doc |
 |----|-----|------|------|--------|-----|
+| S6 | `audit` | Full codebase audit — 8 source files analyzed, 7 bugs verified (2 confirmed, 5 ruled out). Fixed `__prewarm__` cache leak + removed dead `createUsageDataPart` code. VS Code API research performed. | 3h+ | pending | [05](bug-fixes/05-20260702-cache-leak-and-dead-code-fix.md) |
 | S5 | `fix` | Pay-per-use model ID validation — 23 models validated against Cline API, 404 models removed | 2h+ | multiple | [04](bug-fixes/04-20260702-payg-model-id-validation-fix.md) |
 | S4 | `feat` | Dual provider architecture — Cline (pay-per-use) + ClinePass (subscription), vendor rename, thinking regex fix | 3h+ | multiple | [03](bug-fixes/03-20260702-dual-provider-vendor-rename-fix.md), [02](features/02-20260702-dual-provider-architecture.md) |
 | S3 | `fix` | Provider registration duplicate fix — stuck group, 20 duplicate models, model ID format | 2h+ | multiple | [02](bug-fixes/02-20260702-provider-registration-duplicate-fix.md) |
