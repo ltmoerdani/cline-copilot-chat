@@ -1,20 +1,30 @@
 /**
  * Vendor + routing type definitions for Cline Copilot Chat.
  *
- * Strategy: a single unified provider for 10+ frontier open-weight models
- * via Cline's API (api.cline.bot). New models land on the same endpoint
- * without needing a new vendor ID.
+ * Two providers from a single API key:
+ *   1. **Cline** — pay-per-use billing (100+ models: DeepSeek, Claude, GPT, Gemini…)
+ *   2. **ClinePass** — $9.99/mo subscription for 10 curated open-weight models
+ *      with 2–5× rate limits.
+ *
+ * Both share the same endpoint (api.cline.bot) and the same API key.
+ * The model-ID prefix (`deepseek/` vs `cline-pass/`) determines billing.
  */
 
-export const CLINE_COPILOT_CHAT_VENDOR = "cline-copilot-chat" as const;
+// ── Vendor constants ───────────────────────────────────────────────────────
 
-/** Base vendor ID used for metadata lookups and API routing. */
-export type ProviderVendor = typeof CLINE_COPILOT_CHAT_VENDOR;
+/** Pay-per-use provider — 100+ models billed per token. */
+export const CLINE_VENDOR = "cline" as const;
 
-/** All vendor IDs (currently only Cline Copilot Chat). */
-export type AllProviderVendor = typeof CLINE_COPILOT_CHAT_VENDOR;
+/** Subscription provider — 10 curated models, flat $9.99/mo. */
+export const CLINE_PASS_VENDOR = "cline-pass" as const;
 
-/** Resolve vendor — identity function since there's only one vendor. */
+/** Base vendor type for per-provider code paths. */
+export type ProviderVendor = typeof CLINE_VENDOR | typeof CLINE_PASS_VENDOR;
+
+/** Union of all vendor IDs (payg + pass). */
+export type AllProviderVendor = typeof CLINE_VENDOR | typeof CLINE_PASS_VENDOR;
+
+/** Resolve a vendor constant — identity function for now. */
 export function resolveBaseVendor(vendor: AllProviderVendor): ProviderVendor {
   return vendor;
 }
@@ -24,3 +34,21 @@ export interface ProviderRoutingDefinition {
   chatCompletionsUrl: string;
   modelsUrl: string;
 }
+
+// ── Per-vendor API routing ─────────────────────────────────────────────────
+
+export const BASE_URL = "https://api.cline.bot/api/v1";
+
+/** Shared routing — both providers hit the same endpoint. */
+export const PROVIDER_ROUTES: Record<AllProviderVendor, ProviderRoutingDefinition> = {
+  [CLINE_VENDOR]: {
+    vendor: CLINE_VENDOR,
+    chatCompletionsUrl: `${BASE_URL}/chat/completions`,
+    modelsUrl: `${BASE_URL}/models`,
+  },
+  [CLINE_PASS_VENDOR]: {
+    vendor: CLINE_PASS_VENDOR,
+    chatCompletionsUrl: `${BASE_URL}/chat/completions`,
+    modelsUrl: `${BASE_URL}/models`,
+  },
+};

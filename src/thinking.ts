@@ -15,12 +15,16 @@ export interface ThinkingSettings {
 }
 
 export function thinkingFamily(modelId: string): ThinkingFamily {
-  const bare = modelId.replace(/^cline\//i, "");
+  // Strip vendor prefixes to get the bare model name for family detection.
+  // ClinePass:  "cline-pass/deepseek-v4-flash" → "deepseek-v4-flash"
+  // Pay-per-use: "deepseek/deepseek-chat" → "deepseek-chat"
+  // Direct:     "deepseek-v4-flash" → "deepseek-v4-flash"
+  const bare = modelId.replace(/^(?:cline-pass|cline)\//i, "").replace(/^[^/]+\//i, "");
   if (/^deepseek-/i.test(bare)) return "deepseek";
   if (/^glm-/i.test(bare)) return "glm";
   if (/^kimi-/i.test(bare)) return "kimi";
   if (/^minimax-/i.test(bare)) return "minimax";
-  if (/^qwen3(?:\.|-)/i.test(bare)) return "qwen";
+  if (/^qwen3?(?:\.|-)/i.test(bare)) return "qwen";
   if (/^mimo-/i.test(bare)) return "mimo";
   return null;
 }

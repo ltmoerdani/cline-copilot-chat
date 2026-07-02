@@ -239,7 +239,7 @@ Extension activation
 
 | File | Change |
 |---|---|
-| `src/extension.ts` | (1) API key guard: `if (!apiKey && opts.configuration)` — truthy check mirrors opencode pattern. (2) All 10 model IDs changed `cline/` → `cline-pass/`. (3) Test connection model updated |
+| `src/extension.ts` | (1) API key guard: `if (!apiKey && opts.configuration)` — truthy check for BYOK resolution. (2) All 10 model IDs changed `cline/` → `cline-pass/`. (3) Test connection model updated |
 | `src/metadata.ts` | All `MODEL_LIMITS`, `VISION_CAPABLE_MODELS`, `REASONING_MODELS` keys updated from `cline/` → `cline-pass/` |
 | `package.json` | `languageModelChatProviders` kept with 1 entry (required for BYOK manifest + runtime guard pattern) |
 
@@ -281,7 +281,6 @@ sqlite3 "$DB" "DELETE FROM ItemTable WHERE key LIKE '%clineCopilotChat.apiKey%';
    `opts.configuration` (not `!== undefined`) is critical:
    - `undefined` → VS Code still resolving BYOK config, return `[]` and let VS Code retry
    - `{}` or `{apiKey:"..."}` → configuration is ready, fall back to secret storage if needed
-   - This mirrors the opencode-copilot-chat pattern (verified by inspecting their source).
 
 4. **ClinePass model ID format is `cline-pass/model`** (with hyphen). Other formats:
    - `cline/model` → HTTP 404 (unknown prefix)

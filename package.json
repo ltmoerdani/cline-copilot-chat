@@ -1,7 +1,7 @@
 {
   "name": "cline-copilot-chat",
   "displayName": "Cline Copilot Chat",
-  "description": "Supercharge VS Code Copilot Chat with 10 frontier open-weight models — DeepSeek V4, Qwen 3.7, MiMo V2.5, Kimi K2.7, GLM 5.2, MiniMax M3. One $9.99/mo subscription, 2-5x rate limits, native model picker.",
+  "description": "Cline for VS Code Copilot Chat — two providers, one API key: Cline (pay-per-use, 100+ models) and ClinePass ($9.99/mo, 10 curated models, 2-5× rate limits).",
   "version": "0.1.0",
   "publisher": "ltmoerdani",
   "license": "MIT",
@@ -44,7 +44,8 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onLanguageModelChatProvider:cline-copilot-chat"
+    "onLanguageModelChatProvider:cline",
+    "onLanguageModelChatProvider:cline-pass"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -151,7 +152,7 @@
     },
     "languageModelChatProviders": [
       {
-        "vendor": "cline-copilot-chat",
+        "vendor": "cline",
         "displayName": "Cline",
         "configuration": {
           "type": "object",
@@ -159,7 +160,22 @@
             "apiKey": {
               "type": "string",
               "title": "Cline API Key",
-              "description": "Enter your Cline API key (from app.cline.bot). Unlocks 10 frontier models in Copilot Chat + Agent Mode.",
+              "description": "Your Cline API key (from app.cline.bot → Settings → API Keys). Unlocks 100+ models — pay per use.",
+              "secret": true
+            }
+          }
+        }
+      },
+      {
+        "vendor": "cline-pass",
+        "displayName": "ClinePass",
+        "configuration": {
+          "type": "object",
+          "properties": {
+            "apiKey": {
+              "type": "string",
+              "title": "ClinePass API Key",
+              "description": "Your Cline API key (same as Cline). $9.99/mo subscription for 10 curated open-weight models with 2-5× rate limits.",
               "secret": true
             }
           }

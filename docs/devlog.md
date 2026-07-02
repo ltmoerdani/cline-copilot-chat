@@ -8,60 +8,60 @@
 
 | Field | Value |
 |-------|-------|
-| **Last Session** | 2026-07-02 (Session 3) |
-| **Worked On** | Fixed 4 critical issues: provider registration duplicate (20→10 models), stuck Cline group, API key guard, and **model ID format** (`cline/` → `cline-pass/`). All models now use official ClinePass format with hyphen per docs.cline.bot. |
-| **Stopped At** | `main` at v0.1.0. Extension fully functional: Set API Key → 10 models appear → models respond correctly via subscription. |
-| **Next Action** | → Test all 10 models end-to-end (MiMo, MiniMax, Qwen, GLM, Kimi, DeepSeek). → Verify thinking mode per family. → Consider marketplace publish. |
+| **Last Session** | 2026-07-02 (Session 5) |
+| **Worked On** | Initial build complete. Dual provider architecture (Cline pay-per-use + ClinePass subscription) fully functional. 23 pay-per-use models validated against API. CHANGELOG consolidated to single v0.1.0 release. All opencode references removed. |
+| **Stopped At** | `main` at v0.1.0. Both providers working: ClinePass (10 models, subscription) + Cline (23 models, pay-per-use). |
+| **Next Action** | → Consider marketplace publish. → Add more models as Cline API expands. → Re-test `anthropic/claude-*` periodically (may be added later). |
 | **Open Issues** | — |
-
-### Session 3 Issues Resolved (2026-07-02)
-
-| # | Issue | Root Cause | Fix |
-|---|-------|------------|-----|
-| 1 | All Copilot models disappeared after cleanup script | `DELETE … WHERE value LIKE '%cline%'` matched global cache keys | VS Code auto-rebuilt on reload |
-| 2 | "Cline" group stuck — Delete & Update API Key didn't work | BYOK entry deleted + extension always returned models regardless of API key | Added `if (!apiKey) return []` guard + cleared stale secrets |
-| 3 | 20 duplicate models after re-adding provider | Dual registration: `registerLanguageModelChatProvider()` (runtime) + `languageModelChatProviders` (manifest) | Fixed guard: `if (!apiKey && opts.configuration)` — truthy check mirrors opencode pattern |
-| 4 | **All models HTTP 404 "model not found"** | Model IDs changed from `clinepass/` → `cline/` during rebrand; API only recognizes `cline-pass/` (with hyphen) | Changed all IDs to official format: `cline-pass/glm-5.2`, etc. per docs.cline.bot/getting-started/clinepass |
-
-**Full session documentation:** `docs/bug-fixes/02-20260702-provider-registration-duplicate-fix.md`
-
-### Session 2 Issues Resolved (2026-07-01)
-
-| # | Issue | Root Cause | Fix |
-|---|-------|------------|-----|
-| 1 | XML tool calls not parsed | Open-weight models output tool invocations as XML text, not structured `tool_calls` | Created `src/toolParsing.ts` — stateful XML parser with 4 parameter extraction strategies |
-| 2 | Empty responses on turn 2+ | Invalid message format: spurious empty user messages, `content: ""` instead of `null` | Refactored `convertMessagesToApi()` to skip empty user wrappers, use `null` for assistant tool_calls |
-| 3 | Infinite tool loop (200+ turns) | Streaming tool calls emitted prematurely with incomplete arguments | Implemented accumulate+flush pattern — collect chunks, emit only on `finish_reason === "tool_calls"` |
-
-**Full session documentation:** `docs/bug-fixes/01-20260701-deepseek-v4-flash-tool-calling-fix.md`
-
-### Session 1 Issues Resolved (2026-07-01)
-
-| # | Issue | Root Cause | Fix |
-|---|-------|------------|-----|
-| 1 | ClinePass research | Needed API compatibility info | Confirmed OpenAI-compatible, documented |
-| 2 | Architecture decision | Fork vs new extension | Built separate extension for discoverability |
-| 3 | Vendor conflict | `opencode-copilot-chat` also used vendor `clinepass` | Changed to `clinepass-chat` |
-| 4 | Models not in picker | `toolCalling: false` filtered by Copilot Chat | Set `toolCalling: true` (confirmed via Bailian) |
-| 5 | API key not resolved | `configuration=null` on first resolution | Fallback to SecretStorage, always return models |
-| 6 | Inaccurate model specs | Uniform 128K/16K placeholder | Verified via DeepSeek/Bailian/Moonshot/MiniMax docs |
-| 7 | Logo creation | Needed combined Cline + Copilot branding | User provided logo, integrated into package |
-
-**Full session documentation:** `docs/features/01-20260701-initial-build-session.md`
 
 ---
 
 ## 🏗 Architecture
 
-### Provider
-Single unified **Cline Copilot Chat** provider (`cline-copilot-chat` vendor) registered via VS Code `LanguageModelChatProvider` API.
+### Providers (Dual)
+
+Two providers, one API key, same endpoint (`api.cline.bot`):
+
+| Provider | Vendor ID | Billing | Models |
+|---|---|---|---|
+| **Cline** | `cline` | Pay-per-use | 23 (DeepSeek, OpenAI, Google, xAI, Z.ai, Moonshot, MiMo, MiniMax, Qwen, Mistral, Meta, Perplexity, Cohere) |
+| **ClinePass** | `cline-pass` | $9.99/mo flat | 10 curated open-weight models with 2–5× rate limits |
 
 - **API Base:** `https://api.cline.bot/api/v1`
-- **Auth:** BYOK — `clineCopilotChat.apiKey` via VS Code `SecretStorage`
-- **Subscription:** $9.99/mo (ClinePass at app.cline.bot)
-- **Strategy:** Single unified provider covers 10+ frontier open-weight models today + any future Cline-native model on the same endpoint (no vendor split required)
+- **Auth:** BYOK — `clineCopilotChat.apiKey` via VS Code `SecretStorage` (shared)
+- **Pattern:** Shared `ClineProvider` class instantiated twice per `PROVIDER_CONFIGS` record
 
-### Models (10)
+### Models — Cline (Pay-Per-Use) — 23 validated models
+
+| Model ID | Display Name | Family | API Status |
+|----------|-------------|--------|------------|
+| `deepseek/deepseek-v4-flash` | DeepSeek V4 Flash ⭐ | DeepSeek | 200 OK (free) |
+| `deepseek/deepseek-v4-pro` | DeepSeek V4 Pro | DeepSeek | 402 (valid) |
+| `deepseek/deepseek-v3` | DeepSeek V3 | DeepSeek | 402 (valid) |
+| `deepseek/deepseek-r1` | DeepSeek R1 | DeepSeek | 402 (valid) |
+| `deepseek/deepseek-chat` | DeepSeek Chat | DeepSeek | 402 (valid) |
+| `openai/gpt-4o` | GPT-4o | OpenAI | 402 (valid) |
+| `openai/gpt-5` | GPT-5 | OpenAI | 402 (valid) |
+| `openai/o3` | o3 | OpenAI | 402 (valid) |
+| `google/gemini-2.5-pro` | Gemini 2.5 Pro | Google | 402 (valid) |
+| `xai/grok-3` | Grok 3 | xAI | 402 (valid) |
+| `xai/grok-4` | Grok 4 | xAI | 402 (valid) |
+| `zai/glm-5.2` | GLM 5.2 | Z.ai | 402 (valid) |
+| `moonshot/kimi-k2.7-code` | Kimi K2.7 Code | Moonshot AI | 402 (valid) |
+| `moonshot/kimi-k2.6` | Kimi K2.6 | Moonshot AI | 402 (valid) |
+| `mimo/mimo-v2.5` | MiMo V2.5 | MiMo | 402 (valid) |
+| `mimo/mimo-v2.5-pro` | MiMo V2.5 Pro | MiMo | 402 (valid) |
+| `minimax/minimax-m3` | MiniMax M3 | MiniMax | 402 (valid) |
+| `qwen/qwen3.7-max` | Qwen3.7 Max | Qwen | 402 (valid) |
+| `qwen/qwen3.7-plus` | Qwen3.7 Plus | Qwen | 402 (valid) |
+| `mistral/mistral-large` | Mistral Large | Mistral | 402 (valid) |
+| `meta/llama-4-maverick` | Llama 4 Maverick | Meta | 402 (valid) |
+| `perplexity/sonar-pro` | Sonar Pro | Perplexity | 402 (valid) |
+| `cohere/command-r-plus` | Command R+ | Cohere | 402 (valid) |
+
+> ⭐ `deepseek/deepseek-v4-flash` is free — returns 200 OK even with $0 balance.
+
+### Models — ClinePass ($9.99/mo)
 
 | Model ID | Display Name | Family |
 |----------|-------------|--------|
@@ -80,25 +80,14 @@ Single unified **Cline Copilot Chat** provider (`cline-copilot-chat` vendor) reg
 
 | File | Purpose |
 |------|---------|
-| `src/extension.ts` | Provider lifecycle, model registration, request building, status bar |
-| `src/streaming.ts` | OpenAI-compatible SSE chat completions, think-tag filtering, XML tool parsing |
+| `src/extension.ts` | Provider lifecycle, model registration, request building |
+| `src/streaming.ts` | OpenAI-compatible SSE chat completions, think-tag filtering |
 | `src/thinking.ts` | Per-model-family thinking/reasoning controls |
 | `src/metadata.ts` | Model limits, vision capabilities, bundled fallback metadata |
 | `src/providerTypes.ts` | Vendor type definitions, routing URL resolution |
 | `src/toolParsing.ts` | XML tool-call parser for models without native `tool_calls` |
-| `src/retry.ts` | HTTP retry helper for transient 400 errors |
-| `src/errors.ts` | Cline Copilot Chat request error types, user-facing messages |
-
-### Key Features
-
-| Feature | Detail |
-|---------|--------|
-| BYOK | Native VS Code provider `configuration.apiKey` secret flow |
-| Thinking Controls | Per-model-family reasoning effort via picker + settings |
-| Think-Tag Stripping | Auto-strips `<think>` blocks from MiniMax M3 output |
-| XML Tool Parsing | Hallucinated XML tags → native `LanguageModelToolCallPart` |
-| Usage Tracker | Status bar indicator + persistent Webview panel |
-| Vision Support | Image attachments for Kimi K2.5/2.6/2.7, MiMo V2.5, Qwen3.7 |
+| `src/retry.ts` | HTTP retry helper for transient errors |
+| `src/errors.ts` | Request error types, user-facing messages |
 
 ### VS Code Commands
 
@@ -106,7 +95,7 @@ Single unified **Cline Copilot Chat** provider (`cline-copilot-chat` vendor) reg
 |---------|-------------|
 | `clineCopilotChat.manage` | Open provider management |
 | `clineCopilotChat.setApiKey` | Set API key |
-| `clineCopilotChat.diagnostics` | Show diagnostics |
+| `clineCopilotChat.diagnostics` | Show diagnostics (both providers) |
 | `clineCopilotChat.setThinkingEffort` | Set thinking effort per model family |
 
 ### Configuration (`clineCopilotChat.*`)
@@ -137,18 +126,28 @@ _None._
 
 ## 📋 Completed History
 
-| Date | Summary |
-|------|---------|
-| 2026-07-01 (Session 2) | Fixed DeepSeek V4 Flash tool calling: XML parser, message format, streaming accumulation. Agent mode now works. |
-| 2026-07-01 (Session 1) | Initial build from scratch: research → scaffold → debug → verify specs. 7 issues resolved. |
-| 2026-07-01 | Documentation reset — devlog cleaned, all docs aligned with current single-provider architecture |
+### 📅 2026-07-02
+
+| ID | Tag | Task | Time | Commit | Doc |
+|----|-----|------|------|--------|-----|
+| S5 | `fix` | Pay-per-use model ID validation — 23 models validated against Cline API, 404 models removed | 2h+ | multiple | [04](bug-fixes/04-20260702-payg-model-id-validation-fix.md) |
+| S4 | `feat` | Dual provider architecture — Cline (pay-per-use) + ClinePass (subscription), vendor rename, thinking regex fix | 3h+ | multiple | [03](bug-fixes/03-20260702-dual-provider-vendor-rename-fix.md), [02](features/02-20260702-dual-provider-architecture.md) |
+| S3 | `fix` | Provider registration duplicate fix — stuck group, 20 duplicate models, model ID format | 2h+ | multiple | [02](bug-fixes/02-20260702-provider-registration-duplicate-fix.md) |
+
+### 📅 2026-07-01
+
+| ID | Tag | Task | Time | Commit | Doc |
+|----|-----|------|------|--------|-----|
+| S2 | `fix` | DeepSeek V4 Flash tool calling — XML parser, message format, streaming accumulation | 3h+ | multiple | [01](bug-fixes/01-20260701-deepseek-v4-flash-tool-calling-fix.md) |
+| S1 | `feat` | Initial build — research, scaffold, debug, verify specs, 7 issues resolved | 5h+ | initial | [01](features/01-20260701-initial-build-session.md) |
 
 ---
 
 ## ⚠️ Notes
 
 - No secrets in devlog, docs, diagnostics, or pasted request logs.
-- All docs: `documentation-standards.md`, `changelog-guide.md`, `devlog-guide.md`, `devlog.md`.
+- All model IDs in Cline provider were validated via direct API testing (curl) — not just documentation.
+- `deepseek/deepseek-v4-flash` is the only free model (200 OK with $0 balance) — use as connection test.
 
 ---
 

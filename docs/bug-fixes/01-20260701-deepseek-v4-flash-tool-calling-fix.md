@@ -229,7 +229,7 @@ if (fnName) {
 
 ### Solution
 
-Implemented **accumulate+flush pattern** (same as OpenCode):
+Implemented **accumulate+flush pattern**:
 
 1. **Accumulate** tool call chunks into `pendingToolCalls` Map
 2. **Flush** only when `finish_reason === "tool_calls"` or stream ends
@@ -348,13 +348,12 @@ Never emit `LanguageModelToolCallPart` on each delta. Accumulate across chunks, 
 
 ### 4. Reference Implementation Matters
 
-OpenCode's `OpenAiResponseExtractor` pattern (accumulate+flush) is the correct approach. Always check reference implementations for complex streaming logic.
+The accumulate+flush pattern is the correct approach for streaming tool calls. Always check reference implementations for complex streaming logic.
 
 ---
 
 ## Related Documentation
 
-- [OpenCode Copilot Chat](https://github.com/ltmoerdani/opencode-copilot-chat) — Reference implementation
 - [VS Code Language Model API](https://code.visualstudio.com/api/extension-guides/language-model) — Official docs
 - [OpenAI Chat Completions API](https://platform.openai.com/docs/api-reference/chat) — Message format spec
 

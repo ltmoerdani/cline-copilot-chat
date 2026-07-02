@@ -15,7 +15,10 @@ export class ClineCopilotChatRequestError extends Error {
       return "Cline Copilot Chat: Invalid API key. Run 'Cline Copilot Chat: Set API Key' to update.";
     }
     if (this.status === 402) {
-      return "Cline Copilot Chat: Insufficient credits. Check your subscription at app.cline.bot.";
+      return "Cline Copilot Chat: Insufficient credits. Add credits at app.cline.bot or use ClinePass models instead.";
+    }
+    if (this.status === 404) {
+      return "Cline Copilot Chat: Model not found. For pay-per-use models, enable Cline (usage-billing) at app.cline.bot and add credits. Use ClinePass models for subscription access.";
     }
     if (this.status === 429) {
       return "Cline Copilot Chat: Rate limited. Wait a moment and try again.";

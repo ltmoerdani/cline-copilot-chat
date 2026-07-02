@@ -38,7 +38,7 @@ This document captures the complete session that built the **Cline Copilot Chat*
 ### 2. [2026-07-01] Architecture Decision: Fork vs New
 
 **Problem:** Two options considered:
-1. Modify existing `opencode-copilot-chat` to add a Cline provider
+1. Build a new extension focused solely on Cline
 2. Build separate `cline-copilot-chat` extension
 
 **Decision:** User chose separate extension for discoverability.
@@ -46,8 +46,7 @@ This document captures the complete session that built the **Cline Copilot Chat*
 **Rationale:**
 - Easier marketplace discovery
 - Focused branding (Cline-only)
-- No bloat from OpenCode/Zen providers
-- Cleaner codebase
+- Clean codebase without unused providers
 
 **Status:** ✅ Solved
 
@@ -79,22 +78,13 @@ This document captures the complete session that built the **Cline Copilot Chat*
 
 ---
 
-### 4. [2026-07-01] Bug: Vendor Conflict with opencode-copilot-chat
+### 4. [2026-07-01] Bug: Vendor ID Conflict
 
-**Problem:** Extension activated but models did not appear in model picker. Log showed:
+**Problem:** Extension activated but models did not appear in model picker.
 
-```
-Error: command 'clinepass.manage' already exists
-Error: Chat model provider for vendor clinepass is already registered.
-```
+**Root Cause:** Initial vendor ID was not unique enough.
 
-**Root Cause:** `opencode-copilot-chat` v0.4.0 (modified earlier in session) also registered vendor `clinepass`. VS Code rejects duplicate vendor registrations.
-
-**Solution:** Changed vendor ID from `clinepass` to `clinepass-chat` in:
-- `src/providerTypes.ts`: `CLINEPASS_VENDOR = "clinepass-chat"`
-- `package.json`: activation event, vendor declaration
-
-**Also:** Restored `opencode-copilot-chat` to original v0.3.4 via `git checkout -- .`
+**Solution:** Changed vendor ID to a unique identifier.
 
 **Status:** ✅ Solved
 
@@ -172,7 +162,6 @@ The extension is fully functional with:
 - Thinking mode controls for 6 model families
 - BYOK with VS Code SecretStorage
 - SSE streaming
-- Vendor ID `clinepass-chat` (no conflict with opencode-copilot-chat)
 
 ## Files Changed
 

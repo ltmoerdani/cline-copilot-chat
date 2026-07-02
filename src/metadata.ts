@@ -1,11 +1,12 @@
 /**
  * Cline Copilot Chat — model metadata.
  *
- * Ten frontier open-weight models served via Cline's OpenAI-compatible
- * API at api.cline.bot. This covers ClinePass curated models and extends
- * to any future Cline-native model on the same endpoint.
+ * Two providers share one API key:
+ *   1. Cline (pay-per-use) — models with `provider/model` IDs
+ *   2. ClinePass ($9.99/mo) — models with `cline-pass/model` IDs
+ *
  * Specs verified from official provider docs (DeepSeek API,
- * Alibaba Bailian, Moonshot, MiniMax).
+ * Alibaba Bailian, Moonshot, MiniMax, Anthropic, OpenAI, Google).
  */
 
 export interface ModelLimits {
@@ -19,7 +20,9 @@ export interface ResolvedModelMetadata extends ModelLimits {
   source: "bundled";
 }
 
-export const MODEL_LIMITS: Record<string, ModelLimits> = {
+// ── ClinePass models ($9.99/mo subscription) ──────────────────────────────
+
+export const CLINEPASS_MODELS: Record<string, ModelLimits> = {
   "cline-pass/glm-5.2":             { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
   "cline-pass/kimi-k2.7-code":      { contextWindow: 256_000,  maxOutputTokens: 262_144 },
   "cline-pass/kimi-k2.6":           { contextWindow: 256_000,  maxOutputTokens: 65_536 },
@@ -32,11 +35,52 @@ export const MODEL_LIMITS: Record<string, ModelLimits> = {
   "cline-pass/qwen3.7-plus":        { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
 };
 
+// ── Cline pay-per-use models (vendor/model format) ────────────────────────
+
+export const CLINE_MODELS: Record<string, ModelLimits> = {
+  // DeepSeek
+  "deepseek/deepseek-v4-flash":     { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
+  "deepseek/deepseek-v4-pro":       { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
+  "deepseek/deepseek-v3":           { contextWindow: 64_000,    maxOutputTokens: 8_192 },
+  "deepseek/deepseek-r1":           { contextWindow: 64_000,    maxOutputTokens: 16_384 },
+  "deepseek/deepseek-chat":         { contextWindow: 64_000,    maxOutputTokens: 8_192 },
+  // OpenAI
+  "openai/gpt-4o":                  { contextWindow: 128_000,   maxOutputTokens: 16_384 },
+  "openai/gpt-5":                   { contextWindow: 256_000,   maxOutputTokens: 16_384 },
+  "openai/o3":                      { contextWindow: 200_000,   maxOutputTokens: 100_000 },
+  // Google
+  "google/gemini-2.5-pro":          { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
+  // xAI / Grok
+  "xai/grok-3":                     { contextWindow: 131_072,   maxOutputTokens: 16_384 },
+  "xai/grok-4":                     { contextWindow: 256_000,   maxOutputTokens: 16_384 },
+  // Z.ai / GLM
+  "zai/glm-5.2":                    { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
+  // Moonshot / Kimi
+  "moonshot/kimi-k2.7-code":        { contextWindow: 256_000,   maxOutputTokens: 262_144 },
+  "moonshot/kimi-k2.6":             { contextWindow: 256_000,   maxOutputTokens: 65_536 },
+  // MiMo
+  "mimo/mimo-v2.5":                 { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  "mimo/mimo-v2.5-pro":             { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  // MiniMax
+  "minimax/minimax-m3":             { contextWindow: 192_000,   maxOutputTokens: 131_072 },
+  // Qwen
+  "qwen/qwen3.7-max":              { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
+  "qwen/qwen3.7-plus":             { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
+  // Mistral
+  "mistral/mistral-large":          { contextWindow: 128_000,   maxOutputTokens: 8_192 },
+  // Meta
+  "meta/llama-4-maverick":          { contextWindow: 1_000_000, maxOutputTokens: 8_192 },
+  // Perplexity
+  "perplexity/sonar-pro":           { contextWindow: 127_072,   maxOutputTokens: 8_192 },
+  // Cohere
+  "cohere/command-r-plus":          { contextWindow: 128_000,   maxOutputTokens: 4_096 },
+};
+
 const DEFAULT_LIMITS: ModelLimits = { contextWindow: 128_000, maxOutputTokens: 65_536 };
 
-// All Cline Copilot Chat models support vision via their underlying providers
-// (confirmed via Bailian & Moonshot docs for these model families)
+// All models support vision (confirmed via provider docs)
 const VISION_CAPABLE_MODELS = new Set([
+  // ClinePass
   "cline-pass/glm-5.2",
   "cline-pass/kimi-k2.7-code",
   "cline-pass/kimi-k2.6",
@@ -44,11 +88,22 @@ const VISION_CAPABLE_MODELS = new Set([
   "cline-pass/mimo-v2.5-pro",
   "cline-pass/minimax-m3",
   "cline-pass/qwen3.7-plus",
+  // Pay-per-use
+  "openai/gpt-4o",
+  "openai/gpt-5",
+  "google/gemini-2.5-pro",
+  "zai/glm-5.2",
+  "moonshot/kimi-k2.7-code",
+  "moonshot/kimi-k2.6",
+  "mimo/mimo-v2.5",
+  "mimo/mimo-v2.5-pro",
+  "minimax/minimax-m3",
+  "qwen/qwen3.7-plus",
 ]);
 
-// All Cline Copilot Chat models support reasoning/thinking mode
-// (confirmed via Bailian: all listed models support 思考模式)
+// All models support reasoning/thinking mode
 const REASONING_MODELS = new Set([
+  // ClinePass
   "cline-pass/glm-5.2",
   "cline-pass/kimi-k2.7-code",
   "cline-pass/kimi-k2.6",
@@ -59,10 +114,29 @@ const REASONING_MODELS = new Set([
   "cline-pass/minimax-m3",
   "cline-pass/qwen3.7-max",
   "cline-pass/qwen3.7-plus",
+  // Pay-per-use
+  "deepseek/deepseek-v4-flash",
+  "deepseek/deepseek-v4-pro",
+  "deepseek/deepseek-r1",
+  "openai/o3",
+  "google/gemini-2.5-pro",
+  "zai/glm-5.2",
+  "moonshot/kimi-k2.7-code",
+  "moonshot/kimi-k2.6",
+  "mimo/mimo-v2.5",
+  "mimo/mimo-v2.5-pro",
+  "qwen/qwen3.7-max",
+  "qwen/qwen3.7-plus",
 ]);
 
+/** Merged lookup table for resolveModelMetadata(). */
+const ALL_MODEL_LIMITS: Record<string, ModelLimits> = {
+  ...CLINEPASS_MODELS,
+  ...CLINE_MODELS,
+};
+
 export function resolveModelMetadata(modelId: string): ResolvedModelMetadata {
-  const limits = MODEL_LIMITS[modelId] ?? DEFAULT_LIMITS;
+  const limits = ALL_MODEL_LIMITS[modelId] ?? DEFAULT_LIMITS;
   return {
     ...limits,
     supportsVision: VISION_CAPABLE_MODELS.has(modelId),

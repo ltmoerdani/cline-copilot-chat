@@ -169,7 +169,7 @@ export async function streamChatCompletions(
     return parts;
   }
 
-  await streamOpenCodeResponse({
+  await streamChatResponse({
     ...options,
     extractStreamParts: (data: unknown) => {
       const parts: vscode.LanguageModelResponsePart[] = [];
@@ -321,13 +321,13 @@ export async function streamChatCompletions(
   }
 }
 
-interface StreamOpenCodeResponseOptions extends StreamRequestOptions {
+interface StreamChatResponseOptions extends StreamRequestOptions {
   extractStreamParts: (data: unknown) => vscode.LanguageModelResponsePart[];
   extractFullParts: (data: unknown) => vscode.LanguageModelResponsePart[];
 }
 
-async function streamOpenCodeResponse(
-  options: StreamOpenCodeResponseOptions,
+async function streamChatResponse(
+  options: StreamChatResponseOptions,
 ): Promise<void> {
   const controller = new AbortController();
   // requestTimeoutMs and streamIdleTimeoutMs are already in milliseconds — no * 1000.

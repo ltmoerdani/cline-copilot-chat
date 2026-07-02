@@ -15,7 +15,7 @@
  *
  * This module converts those tags into `vscode.LanguageModelToolCallPart`
  * so Copilot Chat agent mode works with non-tool-calling models, the same
- * way OpenCode routes these models.
+ * way these models route tool calls.
  *
  * Design:
  *   - `XmlToolStreamParser` is stateful — feed it text chunks via `feed()`.

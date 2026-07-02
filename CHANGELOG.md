@@ -6,39 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [0.1.0] — 2026-07-01
+## [0.1.0] — 2026-07-02
 
 ### Added
 
-- **Initial release** of Cline Copilot Chat — a single Cline vendor for VS Code's native Copilot Chat model picker.
-- **Strategy:** one unified Cline vendor (`cline-copilot-chat`) backed by Cline's OpenAI-compatible API at `https://api.cline.bot/api/v1`. This covers the ClinePass curated catalog of 10 open weight models today and any future Cline-native model exposed on the same endpoint — no vendor split required.
-- **10 ClinePass curated open weight models** registered in the Copilot Chat model picker:
-  - DeepSeek V4 Pro / Flash (1M context, 384K max output)
-  - GLM 5.2 (1M context, 131K max output, vision)
-  - Kimi K2.7 Code / K2.6 (256K context, vision)
-  - MiMo V2.5 / V2.5 Pro (1M context, vision)
-  - MiniMax M3 (192K context, vision)
-  - Qwen3.7 Max / Plus (1M context, vision on Plus)
-- BYOK authentication via VS Code SecretStorage (`clineCopilotChat.apiKey`)
-- Thinking mode controls for 6 model families (DeepSeek, GLM, Kimi, MiniMax, MiMo, Qwen)
-- SSE streaming for real-time response delivery
-- Per-family reasoning effort configuration via settings and model picker
-- XML tool-call parsing fallback — converts hallucinated XML-style tool invocations from non-native-tool-calling open weight models into native `LanguageModelToolCallPart`, so Agent Mode works with DeepSeek, MiMo, MiniMax, Qwen, etc.
-- Commands: `clineCopilotChat.manage`, `clineCopilotChat.setApiKey`, `clineCopilotChat.diagnostics`, `clineCopilotChat.setThinkingEffort`
-- Configuration settings: temperature, maxTokens, timeouts, stripThinkTags, per-family thinking
-- Custom logo combining Cline and Copilot branding
-- Diagnostics command to inspect registered model metadata
-
-### Fixed
-
-- **Vendor conflict** with `opencode-copilot-chat`: selected the `cline-copilot-chat` vendor ID up front to avoid collision
-- **Models not visible in chat picker**: set `toolCalling: true` (Copilot Chat filters out models without tool calling support)
-- **API key resolution on first picker load**: added SecretStorage fallback when `configuration=null`
-- **Model specs accuracy**: verified all context/output limits from official provider docs (DeepSeek API, Alibaba Bailian, Moonshot, MiniMax)
-- **Multi-turn message format**: skip spurious empty user messages, use `content: null` (not `""`) for assistant tool-call messages — fixes empty responses on turn 2+
-- **Infinite tool loop on non-native models**: accumulate streaming tool call deltas and only emit on `finish_reason === "tool_calls"` — prevents premature emission of incomplete tool calls
-
-### Removed
-
-- All OpenCode-related code, providers, commands, and configuration (forked from `opencode-copilot-chat`, stripped to Cline-only)
+- **Dual provider architecture.** Two separate providers in VS Code's Copilot Chat model picker: **Cline** (pay-per-use, 23 models) and **ClinePass** ($9.99/mo subscription, 10 curated open-weight models). Both share one API key and one endpoint (`https://api.cline.bot/api/v1`). The model ID prefix determines billing: `vendor/model` routes to credits, `cline-pass/model` routes to subscription quota.
+- **ClinePass subscription models (10):** GLM 5.2, Kimi K2.7 Code, Kimi K2.6, DeepSeek V4 Pro/Flash, MiMo V2.5/V2.5 Pro, MiniMax M3, Qwen3.7 Max/Plus — all with `cline-pass/` prefix routing via subscription quota (validated: HTTP 200 OK).
+- **Cline pay-per-use models (23):** DeepSeek V4 Flash/Pro/V3/R1/Chat, GPT-4o, GPT-5, o3, Gemini 2.5 Pro, Grok 3/4, GLM 5.2, Kimi K2.7 Code/K2.6, MiMo V2.5/V2.5 Pro, MiniMax M3, Qwen3.7 Max/Plus, Mistral Large, Llama 4 Maverick, Sonar Pro, Command R+ — all validated against the Cline API via direct testing.
+- **Free test model:** `deepseek/deepseek-v4-flash` — the only model returning 200 OK without credits, used as default for connection verification.
+- **Shared provider class.** Single `ClineProvider` class instantiated per vendor via `PROVIDER_CONFIGS` record — no code duplication across providers.
+- **API key guard.** `provideLanguageModelChatInformation` returns empty model list when no API key is resolved, enabling proper Delete behavior in VS Code's Language Models UI.
+- **API key resolution chain.** BYOK config → in-memory cache → SecretStorage fallback, with legacy key migration from pre-rebrand `clinepass.apiKey`.
+- **Thinking mode controls** for 6 model families (DeepSeek, GLM, Kimi, MiniMax, MiMo, Qwen) with per-family reasoning effort via settings and model picker. `thinkingFamily()` strips both `cline-pass/` and `provider/` prefixes for correct family detection.
+- **SSE streaming** for real-time response delivery with think-tag filtering and idle timeout.
+- **XML tool-call parsing fallback** — converts hallucinated XML-style tool invocations from non-native-tool-calling models into native `LanguageModelToolCallPart`, enabling Agent Mode.
+- **Multi-turn message format** — skip spurious empty user messages, use `content: null` for assistant tool-call messages, emit tool calls only on `finish_reason === "tool_calls"` to prevent infinite loops.
+- **Commands:** `clineCopilotChat.manage`, `clineCopilotChat.setApiKey`, `clineCopilotChat.diagnostics`, `clineCopilotChat.setThinkingEffort`.
+- **Configuration settings:** temperature, maxTokens, timeouts, stripThinkTags, per-family thinking.
+- **Shared diagnostics** command showing models from both providers in a single Markdown report.
+- **Custom logo** combining Cline and Copilot branding.
 
