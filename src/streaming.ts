@@ -8,6 +8,7 @@ import {
   formatDuration,
   truncateForLog,
 } from "./errors";
+import { shouldRetryHttp, retryDelayMs, parseRetryAfter } from "./retry";
 import { XmlToolStreamParser } from "./toolParsing";
 
 interface PendingToolCall {
@@ -333,6 +334,8 @@ interface StreamChatResponseOptions extends StreamRequestOptions {
   extractFullParts: (data: unknown) => vscode.LanguageModelResponsePart[];
 }
 
+const MAX_HTTP_RETRIES = 3;
+
 async function streamChatResponse(
   options: StreamChatResponseOptions,
 ): Promise<void> {
@@ -360,13 +363,46 @@ async function streamChatResponse(
   let lastStatus: number | undefined;
   let lastContentType: string | undefined;
 
+  let response: Response;
   try {
-    const response = await fetch(options.url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(options.body),
-      signal: controller.signal,
-    });
+    // Retry loop for transient failures: network errors + HTTP 429/5xx/transient-400.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        response = await fetch(options.url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(options.body),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        // Network error — retry if budget remains (AbortError = timeout, not retryable here).
+        const isAbort = err instanceof Error && err.name === "AbortError";
+        if (isAbort || attempt >= MAX_HTTP_RETRIES) throw err;
+        const delay = retryDelayMs(attempt);
+        options.output?.appendLine(
+          `[retry] network error attempt=${attempt + 1}/${MAX_HTTP_RETRIES + 1} delay=${delay}ms model=${options.modelId}`,
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      // HTTP-level retry for transient status codes.
+      if (!response.ok && attempt < MAX_HTTP_RETRIES) {
+        const body = await response.text().catch(() => "");
+        if (shouldRetryHttp(response.status, body)) {
+          // Honor Retry-After header (mainly for 429).
+          const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
+          const delay = retryAfterMs ?? retryDelayMs(attempt);
+          options.output?.appendLine(
+            `[retry] HTTP ${response.status} attempt=${attempt + 1}/${MAX_HTTP_RETRIES + 1} delay=${delay}ms model=${options.modelId}`,
+          );
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+      }
+
+      break; // success or non-retryable — exit loop.
+    }
 
     lastStatus = response.status;
     lastContentType = response.headers.get("content-type") ?? undefined;
@@ -387,16 +423,22 @@ async function streamChatResponse(
     const decoder = new TextDecoder();
     let buffer = "";
 
+    // Register cancellation listener ONCE outside the loop to prevent listener leak.
+    // Each onCancellationRequested call returns a Disposable that must be disposed.
+    let cancelDisposable: vscode.Disposable | undefined;
+    const cancelPromise = new Promise<{ done: true; value: undefined }>((resolve) => {
+      cancelDisposable = options.token.onCancellationRequested(() =>
+        resolve({ done: true, value: undefined }),
+      );
+    });
+
     try {
       while (true) {
         if (options.token.isCancellationRequested) break;
 
         const { done, value } = await Promise.race([
           reader.read(),
-          new Promise<{ done: true; value: undefined }>((resolve) => {
-            const onAbort = () => resolve({ done: true, value: undefined });
-            options.token.onCancellationRequested(onAbort);
-          }),
+          cancelPromise,
         ]);
 
         if (done) break;
@@ -449,6 +491,8 @@ async function streamChatResponse(
       }
     } finally {
       reader.releaseLock();
+      // Dispose the single cancellation listener to prevent memory leak.
+      cancelDisposable?.dispose();
     }
   } catch (error) {
     const durationMs = Date.now() - startTime;

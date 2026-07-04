@@ -316,7 +316,13 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       body.max_tokens = settings.maxTokens;
     }
 
-    const thinkingPayload = buildThinkingPayload(rawModelId, settings.thinking, false);
+    const hasImageInput = messages.some((msg) => {
+      if (typeof msg.content === "string") return false;
+      return msg.content.some(
+        (part) => part instanceof vscode.LanguageModelDataPart && part.mimeType.startsWith("image/"),
+      );
+    });
+    const thinkingPayload = buildThinkingPayload(rawModelId, settings.thinking, hasImageInput);
     if (thinkingPayload) {
       Object.assign(body, thinkingPayload);
     }
@@ -423,7 +429,18 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       statusBar.dispose();
 
       if (response.ok) {
-        vscode.window.showInformationMessage(`${this.config.displayName}: Connection OK (HTTP ${response.status}).`);
+        // Validate response body contains actual content, not just HTTP 200.
+        let reply = "";
+        try {
+          const json = await response.json();
+          reply = json?.choices?.[0]?.message?.content ?? "";
+        } catch {
+          // Non-JSON body — treat as connection OK but note the oddity.
+        }
+        const detail = reply ? ` — got reply: "${reply.slice(0, 40)}"` : " (empty content)";
+        vscode.window.showInformationMessage(
+          `${this.config.displayName}: Connection OK (HTTP ${response.status})${detail}.`,
+        );
       } else {
         const body = await response.text();
         this.log(`Test failed (${response.status}): ${body}`);

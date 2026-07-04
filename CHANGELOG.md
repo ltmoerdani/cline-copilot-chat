@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.1] — 2026-07-04
+
+### Fixed
+
+- **CancellationToken listener leak in streaming loop.** Each SSE chunk iteration registered a new `onCancellationRequested` listener via `Promise.race` but never disposed the returned `Disposable`. For a 500-chunk response, this meant 500 leaked listeners accumulating in memory until the token itself was disposed. Fixed by registering the listener **once** outside the `while(true)` loop and disposing it in a `finally` block after the stream completes. `[Streaming]`
+- **Transient HTTP errors not retried.** `retry.ts` existed with `shouldRetryHttp400` and `retryDelayMs` helpers but was never imported or used by any module. All HTTP errors (429 rate limit, 500/502/503/504 server errors, transient 400 "overloaded") were thrown directly to the user without retry. Fixed by expanding `shouldRetryHttp` to cover all transient statuses, wiring a unified retry loop into `streamChatResponse` (max 3 retries with exponential backoff + jitter), and honoring the `Retry-After` header for 429 responses. `[Streaming]`
+- **`testConnection` did not validate response body.** The connection test only checked `response.ok` (HTTP 200) without parsing the body, meaning an API returning 200 with an error payload would report "Connection OK". Fixed by parsing `choices[0].message.content` and displaying the actual reply in the success message. `[Extension]`
+- **`_hasImageInput` parameter was always `false`.** `buildThinkingPayload` accepted a `hasImageInput` parameter but the call site hardcoded `false`, preventing models from adjusting thinking mode for vision input. Fixed by detecting `LanguageModelDataPart` with `image/*` MIME type in the message array and passing the real value. `[Extension]`
+
+### Removed
+
+- **Dead code in `providerTypes.ts`.** Removed unused exports: `PROVIDER_ROUTES` (routing table never read — `extension.ts` uses `BASE_URL` directly), `resolveBaseVendor()` (identity function never called), and `ProviderRoutingDefinition` interface (only used by the removed routing table). `[Types]`
+
+---
+
 ## [0.1.0] — 2026-07-02
 
 ### Added

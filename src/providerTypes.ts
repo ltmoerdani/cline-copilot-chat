@@ -24,31 +24,6 @@ export type ProviderVendor = typeof CLINE_VENDOR | typeof CLINE_PASS_VENDOR;
 /** Union of all vendor IDs (payg + pass). */
 export type AllProviderVendor = typeof CLINE_VENDOR | typeof CLINE_PASS_VENDOR;
 
-/** Resolve a vendor constant — identity function for now. */
-export function resolveBaseVendor(vendor: AllProviderVendor): ProviderVendor {
-  return vendor;
-}
-
-export interface ProviderRoutingDefinition {
-  vendor: AllProviderVendor;
-  chatCompletionsUrl: string;
-  modelsUrl: string;
-}
-
-// ── Per-vendor API routing ─────────────────────────────────────────────────
+// ── API base URL ───────────────────────────────────────────────────────────
 
 export const BASE_URL = "https://api.cline.bot/api/v1";
-
-/** Shared routing — both providers hit the same endpoint. */
-export const PROVIDER_ROUTES: Record<AllProviderVendor, ProviderRoutingDefinition> = {
-  [CLINE_VENDOR]: {
-    vendor: CLINE_VENDOR,
-    chatCompletionsUrl: `${BASE_URL}/chat/completions`,
-    modelsUrl: `${BASE_URL}/models`,
-  },
-  [CLINE_PASS_VENDOR]: {
-    vendor: CLINE_PASS_VENDOR,
-    chatCompletionsUrl: `${BASE_URL}/chat/completions`,
-    modelsUrl: `${BASE_URL}/models`,
-  },
-};

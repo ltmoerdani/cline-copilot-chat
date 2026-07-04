@@ -1,6 +1,6 @@
 # 🧠 CLINE COPILOT CHAT — DEVLOG
 
-**Branch:** `main` | **Updated:** 2026-07-02 Asia/Jakarta | **Version:** v0.1.0
+**Branch:** `main` | **Updated:** 2026-07-04 Asia/Jakarta | **Version:** v0.1.1
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Last Session** | 2026-07-02 (Session 6) |
-| **Worked On** | Full codebase audit (8 source files, ~1,200 lines). Deep analysis covering architecture, security, edge cases, and VS Code API compliance. Verified 7 potential bugs against codebase + internet research. Fixed 2 confirmed issues: (1) `__prewarm__` API key cache leak, (2) dead `createUsageDataPart` code removed with usage logging preserved in output channel. |
-| **Stopped At** | `main` at v0.1.0. Zero compile errors. 2 bugs fixed, 5 false positives ruled out with evidence. |
-| **Next Action** | → Consider marketplace publish. → Add more models as Cline API expands. → Consider adding ESLint + Prettier for code quality guardrails. |
+| **Last Session** | 2026-07-04 (Session 7) |
+| **Worked On** | Deep-dive bug audit + fix round 2. Analyzed 12 potential bugs across 8 source files. Verified each against actual code + VS Code API docs (`vscode.d.ts`) + MDN. Fixed 5 confirmed bugs: (1) CancellationToken listener leak in SSE loop — 500 listeners per response, (2) retry logic dead code — `retry.ts` never imported, transient 429/5xx never retried, (3) dead `PROVIDER_ROUTES` + `resolveBaseVendor` + `ProviderRoutingDefinition`, (4) `testConnection` didn't validate response body, (5) `_hasImageInput` always `false`. Ruled out 4 false positives with evidence (variable shadowing intentional from bug-fix 05, prewarm delete is security fix, regex fragile but safe for current IDs, tool ordering valid per OpenAI spec). |
+| **Stopped At** | `main` at v0.1.1. Zero compile errors (`tsc --noEmit --strict` clean). 5 bugs fixed, 4 false positives ruled out. |
+| **Next Action** | → Consider marketplace publish (codebase now stable). → Add ESLint + Prettier for code quality guardrails. → Add integration tests for streaming + retry paths. |
 | **Open Issues** | — |
 
 ---
@@ -125,6 +125,12 @@ _None._
 ---
 
 ## 📋 Completed History
+
+### 📅 2026-07-04
+
+| ID | Tag | Task | Time | Commit | Doc |
+|----|-----|------|------|--------|-----|
+| S7 | `audit` | Deep-dive bug audit round 2 — 12 potential bugs analyzed, 5 confirmed + fixed, 4 ruled out. Fixed: listener leak (streaming), retry dead code (streaming), dead PROVIDER_ROUTES (types), testConnection blind (extension), _hasImageInput dead (extension). VS Code API + MDN research performed. | 2h+ | pending | [06](bug-fixes/06-20260704-listener-leak-retry-and-dead-code-fix.md) |
 
 ### 📅 2026-07-02
 
