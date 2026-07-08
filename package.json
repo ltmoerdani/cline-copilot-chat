@@ -2,7 +2,7 @@
   "name": "cline-copilot-chat",
   "displayName": "Cline Copilot Chat — BYOK 33+ AI Models",
   "description": "Use 33+ frontier AI models (DeepSeek V4, Kimi K2.7, GLM 5.2, GPT-5, Gemini 2.5, Grok 4, Qwen3.7, MiMo V2.5, MiniMax M3, Claude, free models) in GitHub Copilot Chat. Bring Your Own Key — Cline pay-per-use or ClinePass $9.99/mo.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "ltmoerdani",
   "license": "MIT",
   "icon": "media/logo-cline-copilot-chat.png",

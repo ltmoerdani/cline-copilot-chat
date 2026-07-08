@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.2] — 2026-07-08
+
+### Fixed
+
+- **VS Code 1.128 BYOK utility model error.** VS Code 1.128 introduced `chat.byokUtilityModelDefault` with a default of `"none"`, breaking all background utility tasks (chat title generation, commit messages, intent detection) for BYOK users. The extension now auto-configures `byokUtilityModelDefault = "mainAgent"` on activation (VS Code 1.128+ only), with a one-time toast notification. Skips if the user has already configured any utility model setting explicitly. `[Extension]`
+
+### Changed
+
+- **Extension Development Host launch config.** Replaced the incorrect Chrome web debugger configuration in `.vscode/launch.json` with the correct `extensionHost` configuration. Added `.vscode/tasks.json` with `npm: compile` (build) and `npm: watch` (background watch) tasks. `[DevEx]`
+
+---
+
 ## [0.1.1] — 2026-07-04
 
 ### Fixed
