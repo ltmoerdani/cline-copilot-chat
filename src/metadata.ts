@@ -78,27 +78,35 @@ export const CLINE_MODELS: Record<string, ModelLimits> = {
 
 const DEFAULT_LIMITS: ModelLimits = { contextWindow: 128_000, maxOutputTokens: 65_536 };
 
-// All models support vision (confirmed via provider docs)
+// Vision-capable models (confirmed via official provider docs, Jul 2026)
+// Sources: OpenAI ("all latest models support vision"), xAI (image input docs),
+// Mistral (vision model list), Meta ("natively multimodal"), Kimi (text/image/video),
+// MiniMax M3 ("多模态 Chat 输入"), Alibaba Bailian (vision understanding list).
+// NOTE: MiMo V2.5/V2.5 Pro REMOVED — MiMo-7B is reasoning-only text model, no
+// vision evidence in any official source. DeepSeek V3/V4/R1/Chat are text-only
+// (separate DeepSeek-VL line exists for vision). Cohere Command R+ is text-only
+// (separate Command A Vision model). Perplexity Sonar is text-only search.
 const VISION_CAPABLE_MODELS = new Set([
   // ClinePass
   "cline-pass/glm-5.2",
   "cline-pass/kimi-k2.7-code",
   "cline-pass/kimi-k2.6",
-  "cline-pass/mimo-v2.5",
-  "cline-pass/mimo-v2.5-pro",
   "cline-pass/minimax-m3",
   "cline-pass/qwen3.7-plus",
   // Pay-per-use
   "openai/gpt-4o",
   "openai/gpt-5",
+  "openai/o3",
   "google/gemini-2.5-pro",
+  "xai/grok-3",
+  "xai/grok-4",
   "zai/glm-5.2",
   "moonshot/kimi-k2.7-code",
   "moonshot/kimi-k2.6",
-  "mimo/mimo-v2.5",
-  "mimo/mimo-v2.5-pro",
   "minimax/minimax-m3",
   "qwen/qwen3.7-plus",
+  "mistral/mistral-large",
+  "meta/llama-4-maverick",
 ]);
 
 // All models support reasoning/thinking mode
