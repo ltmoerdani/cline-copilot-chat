@@ -458,6 +458,18 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
 
 // ── Message helpers ────────────────────────────────────────────────────────
 
+/**
+ * Convert a Uint8Array to a base64 string without Node.js Buffer dependency.
+ * Works in extension host where Buffer is available, but this avoids relying on it.
+ */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 function extractTextContent(msg: vscode.LanguageModelChatRequestMessage): string {
   if (typeof msg.content === "string") return msg.content;
   return msg.content
@@ -481,12 +493,16 @@ function convertMessagesToApi(
         : (msg.content as readonly vscode.LanguageModelInputPart[]);
 
     const textParts: string[] = [];
+    const imageParts: Array<{ mimeType: string; data: string }> = [];
     const toolCalls: Array<Record<string, unknown>> = [];
     const toolResults: Array<Record<string, unknown>> = [];
 
     for (const part of parts) {
       if (part instanceof vscode.LanguageModelTextPart) {
         if (part.value) textParts.push(part.value);
+      } else if (part instanceof vscode.LanguageModelDataPart && part.mimeType.startsWith("image/")) {
+        // Convert image bytes to base64 data URI for OpenAI-compatible vision API.
+        imageParts.push({ mimeType: part.mimeType, data: uint8ArrayToBase64(part.data) });
       } else if (part instanceof vscode.LanguageModelToolCallPart) {
         toolCalls.push({
           id: part.callId,
@@ -516,6 +532,18 @@ function convertMessagesToApi(
     if (toolCalls.length > 0) {
       entry.content = joinedText || null;
       entry.tool_calls = toolCalls;
+    } else if (imageParts.length > 0) {
+      // OpenAI-compatible multipart content: text + image_url entries.
+      // Only used when images are present; plain text keeps string format for efficiency.
+      const contentParts: Array<Record<string, unknown>> = [];
+      if (joinedText) contentParts.push({ type: "text", text: joinedText });
+      for (const img of imageParts) {
+        contentParts.push({
+          type: "image_url",
+          image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+        });
+      }
+      entry.content = contentParts;
     } else {
       entry.content = joinedText;
     }
