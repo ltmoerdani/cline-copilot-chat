@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.3] — 2026-07-09
+
+### Fixed
+
+- **Image drag & drop silently discarded.** `LanguageModelDataPart` with `image/*` MIME types was ignored by `convertMessagesToApi()`, so images dragged or pasted into Copilot Chat never reached the API. Now detects image parts, converts `Uint8Array` bytes to base64 data URIs, and builds OpenAI-compatible multipart `content` array (`text` + `image_url`). Pure-text messages keep string format for token efficiency. `[Extension]`
+- **Incorrect vision capability metadata.** Verified `VISION_CAPABLE_MODELS` against official provider docs (Jul 2026). Added 5 models that were missing vision support: `openai/o3` (OpenAI: all latest models support vision), `xai/grok-3` and `xai/grok-4` (xAI image input docs), `mistral/mistral-large` (Mistral vision model list), `meta/llama-4-maverick` (Meta: natively multimodal). Removed 4 entries incorrectly marked as vision-capable: `mimo/mimo-v2.5` and `mimo/mimo-v2.5-pro` (both ClinePass and pay-per-use), since MiMo-7B is a reasoning-only text model with no vision evidence in any official source. `[Metadata]`
+
+---
+
 ## [0.1.2] — 2026-07-08
 
 ### Fixed
