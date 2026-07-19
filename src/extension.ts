@@ -174,7 +174,18 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
     this.log(`[${this.config.displayName}] provideLanguageModelChatInformation CALLED`);
 
     let apiKey = opts.configuration?.apiKey;
-    if (!apiKey && opts.configuration) {
+    // BUG FIX (v0.1.4, found via E2E smoke test): the original guard was
+    //   if (!apiKey && opts.configuration) { ... }
+    // which meant: if VS Code calls provideLanguageModelChatInformation WITHOUT
+    // a configuration object (common early in the session), resolveStoredApiKey
+    // was NEVER invoked and we returned [] even when a key WAS stored. In a
+    // dual-provider setup, this manifested as one vendor (e.g. "cline") staying
+    // invisible to the picker while the other ("cline-pass") worked — depending
+    // on which calls happened to include opts.configuration.
+    //
+    // Fix: ALWAYS fall back to SecretStorage when no inline key was provided,
+    // regardless of whether opts.configuration is present.
+    if (!apiKey) {
       apiKey = await resolveStoredApiKey(this.context.secrets);
     }
     if (apiKey) {
@@ -184,14 +195,21 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       }
     }
 
-    if (token.isCancellationRequested) return [];
-
-    if (!apiKey) {
-      this.log(`[${this.config.displayName}] No API key — returning empty model list.`);
+    if (token.isCancellationRequested) {
+      this.log(`[${this.config.displayName}] provideLanguageModelChatInformation cancelled — returning [].`);
       return [];
     }
 
-    return this.config.models.map((model) => {
+    if (!apiKey) {
+      this.log(
+        `[${this.config.displayName}] No API key — returning empty model list. ` +
+          `Run 'Cline Copilot Chat: Set API Key' then reload the window. ` +
+          `Note: SecretStorage is per-device and is NOT synced by VS Code Settings Sync.`,
+      );
+      return [];
+    }
+
+    const models = this.config.models.map((model) => {
       const metadata = resolveModelMetadata(model.id);
       const effectiveId = `${this.config.vendor}:${model.id}`;
       if (apiKey) {
@@ -216,6 +234,12 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
         configurationSchema,
       };
     });
+
+    this.log(
+      `[${this.config.displayName}] advertising ${models.length} model(s) to VS Code ` +
+        `[${models.slice(0, 3).map((m) => m.rawModelId).join(", ")}${models.length > 3 ? ", …" : ""}]`,
+    );
+    return models;
   }
 
   async provideLanguageModelChatResponse(
@@ -597,6 +621,127 @@ function checkUtilityModelConfiguration(context: vscode.ExtensionContext): void 
     });
 }
 
+/**
+ * One-shot activation diagnostics banner — mirrors the Z.AI v0.4.0 fix for
+ * "models missing from picker on a fresh device / second machine".
+ *
+ * The banner writes to the `Cline Copilot Chat` output channel and reports:
+ *   - VS Code version
+ *   - SecretStorage presence (and length, never the key itself)
+ *   - selectChatModels({ vendor: "cline" }) and ({ vendor: "cline-pass" }) counts
+ *     polled at 0 / 500 / 1500 ms (the picker cache may need a tick to populate)
+ *   - the result of setting `github.copilot.clientByokEnabled = true` so the
+ *     Manage Models gear icon stays clickable for BYOK users who are not signed
+ *     in to GitHub Copilot Chat.
+ *
+ * If the API key is missing, a one-time toast with a `Set API Key` action is
+ * shown. The banner is intentionally NOT guarded behind a globalState flag so
+ * it always appears once per activation — that is the point of a diagnostic.
+ *
+ * Lesson (Z.AI v0.4.0): when pushing lines into a banner array, run ALL
+ * `lines.push(...)` calls BEFORE the final `channel.appendLine(lines.join("\n"))`.
+ * The output channel only sees the snapshot at flush time.
+ */
+async function logActivationDiagnostics(
+  context: vscode.ExtensionContext,
+  outputChannel: vscode.OutputChannel,
+): Promise<void> {
+  const secrets = context.secrets;
+  const key = await secrets.get(SECRET_KEY);
+  const keyStatus = key ? `present (len=${key.length})` : "MISSING";
+
+  const banner: string[] = [
+    `=== Cline Copilot Chat activation diagnostics ===`,
+    `[activate] extension activated, vendors="${CLINE_VENDOR}", "${CLINE_PASS_VENDOR}"`,
+    `[activate] VS Code version: ${vscode.version}`,
+    `[activate] SecretStorage "${SECRET_KEY}": ${keyStatus}`,
+  ];
+
+  // Poll selectChatModels three times — VS Code caches the picker list per window
+  // and the registration may not be visible on the very first tick after activation.
+  const countModels = async (vendor: AllProviderVendor): Promise<number> => {
+    try {
+      return (await vscode.lm.selectChatModels({ vendor })).length;
+    } catch {
+      return -1;
+    }
+  };
+
+  let paygCount = await countModels(CLINE_VENDOR);
+  let passCount = await countModels(CLINE_PASS_VENDOR);
+  banner.push(
+    `[activate] selectChatModels({ vendor: "${CLINE_VENDOR}" }): ${paygCount} model(s) visible to VS Code`,
+    `[activate] selectChatModels({ vendor: "${CLINE_PASS_VENDOR}" }): ${passCount} model(s) visible to VS Code`,
+  );
+
+  // Re-poll after a short delay if the first poll returned 0 — the picker cache
+  // may not have flushed the registration yet.
+  if (paygCount === 0 || passCount === 0) {
+    await new Promise((r) => setTimeout(r, 500));
+    paygCount = await countModels(CLINE_VENDOR);
+    passCount = await countModels(CLINE_PASS_VENDOR);
+    banner.push(
+      `[activate] selectChatModels re-poll @500ms: ${CLINE_VENDOR}=${paygCount}, ${CLINE_PASS_VENDOR}=${passCount}`,
+    );
+  }
+  if (paygCount === 0 || passCount === 0) {
+    await new Promise((r) => setTimeout(r, 1000));
+    paygCount = await countModels(CLINE_VENDOR);
+    passCount = await countModels(CLINE_PASS_VENDOR);
+    banner.push(
+      `[activate] selectChatModels re-poll @1500ms: ${CLINE_VENDOR}=${paygCount}, ${CLINE_PASS_VENDOR}=${passCount}`,
+    );
+  }
+
+  // setContext workaround — keeps the Manage Models gear icon clickable even
+  // when the user is not signed in to Copilot Chat. Defaults to true per VS Code
+  // schema but is sometimes left unset until the Copilot extension first touches
+  // the context service, so we force it.
+  const totalModels = paygCount + passCount;
+  if (totalModels > 0) {
+    try {
+      await vscode.commands.executeCommand(
+        "setContext",
+        "github.copilot.clientByokEnabled",
+        true,
+      );
+      banner.push(
+        `[activate] set 'github.copilot.clientByokEnabled' = true ` +
+          `(ensures Manage Models gear icon stays clickable for BYOK users who are not signed in to Copilot)`,
+      );
+    } catch (err) {
+      banner.push(
+        `[activate] setContext 'github.copilot.clientByokEnabled' FAILED: ${String(err)}`,
+      );
+    }
+  } else {
+    banner.push(
+      `[activate] skipped setContext — no models visible yet (likely API key missing or vendor contribution removed)`,
+    );
+  }
+
+  banner.push(`=== end activation diagnostics ===`);
+
+  // CRITICAL: flush the banner AFTER all lines have been pushed.
+  // (Z.AI v0.4.0 had a bug where setContext result was pushed after flush.)
+  outputChannel.appendLine(banner.join("\n"));
+
+  // One-time toast if the API key is missing — give the user an action button
+  // that opens the Set API Key command, rather than silently reporting 0 models.
+  if (!key) {
+    const NOTICE_KEY = "cline.apiKeyMissingNotified";
+    if (context.globalState.get<boolean>(NOTICE_KEY)) return;
+    void context.globalState.update(NOTICE_KEY, true);
+    const choice = await vscode.window.showWarningMessage(
+      "Cline Copilot Chat: No API key found. Models will not appear in the Copilot Chat picker.",
+      "Set API Key",
+    );
+    if (choice === "Set API Key") {
+      void vscode.commands.executeCommand("clineCopilotChat.setApiKey");
+    }
+  }
+}
+
 // ── Activation ─────────────────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext) {
@@ -695,6 +840,11 @@ export function activate(context: vscode.ExtensionContext) {
 
   // VS Code 1.128+ — auto-fix BYOK utility model so background tasks work
   checkUtilityModelConfiguration(context);
+
+  // Activation diagnostics + setContext workaround — addresses the same class
+  // of "models missing from picker on a fresh device / second machine" bug that
+  // hit Z.AI v0.4.0. Runs async; we intentionally do not await.
+  void logActivationDiagnostics(context, outputChannel);
 }
 
 export async function deactivate(): Promise<void> {}

@@ -207,7 +207,50 @@ ClinePass gives 2-5× the standard API limits. Measured over 5-hour rolling, wee
 
 ---
 
-## 📁 Project Structure
+## � Troubleshooting
+
+### Models missing from the picker on a fresh install or a second machine
+
+VS Code **Settings Sync does not sync `SecretStorage`** for security reasons. When you install the extension on a new machine and sign in with Settings Sync, the extension downloads, but your API key does not — so `provideLanguageModelChatInformation` returns an empty list and the picker shows zero Cline / ClinePass models.
+
+**Fix:**
+
+1. Run **`Cline Copilot Chat: Set API Key`** from the Command Palette.
+2. Paste your Cline API key (from [app.cline.bot](https://app.cline.bot) → Settings → API Keys).
+3. Run **`Developer: Reload Window`**.
+
+A warning toast with a `Set API Key` button now appears automatically the first time the extension activates without a key — you can skip step 1 and just click the button.
+
+To verify the fix worked, open the **Output** panel (`Cmd+Shift+U`) and select the **`Cline Copilot Chat`** channel. You should see an activation banner ending with:
+
+```
+[activate] selectChatModels({ vendor: "cline" }): 13 model(s) visible to VS Code
+[activate] selectChatModels({ vendor: "cline-pass" }): 10 model(s) visible to VS Code
+```
+
+### The gear icon / "Manage Models…" does nothing when clicked
+
+The gear icon invokes VS Code's built-in **Manage Language Models** command, whose precondition requires either an active Copilot entitlement or the `github.copilot.clientByokEnabled` context key. Since v0.1.4 the extension forces that context key to `true` when at least one model is registered, which keeps the gear clickable in most cases.
+
+If it's still unresponsive after a window reload:
+
+1. Run **`Developer: Reload Window`** — the context key is set on activation.
+2. If still dead, **sign in to GitHub Copilot Chat** (a free personal GitHub account is enough — no Copilot Pro subscription required for BYOK). Signing in sets `chatIsEnabled = true`, which is the definitive fix.
+
+### Diagnosing "models not showing up"
+
+Open the **Output** panel and select **`Cline Copilot Chat`**. The activation banner tells you exactly where the pipeline broke:
+
+| Banner line | What it means | Fix |
+|---|---|---|
+| `SecretStorage ... MISSING` | No API key on this machine | Run `Cline Copilot Chat: Set API Key`, then reload |
+| `selectChatModels ... 0 model(s)` while key is present | Vendor contribution removed from `package.json`, or dual-provider race (fixed in v0.1.4 — upgrade) | Reinstall v0.1.4+ |
+| `selectChatModels ... N model(s)` but picker still empty | Picker cache stale per window | `Developer: Reload Window` |
+| `setContext ... FAILED` | Context service unavailable | Reload window; if persistent, sign in to Copilot Chat |
+
+---
+
+## �📁 Project Structure
 
 ```
 src/

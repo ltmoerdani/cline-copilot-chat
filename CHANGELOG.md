@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.4] — 2026-07-19
+
+### Added
+
+- **Activation diagnostics banner.** On every activation, the extension now writes a one-shot banner to the `Cline Copilot Chat` output channel summarising the full registration state: VS Code version, `SecretStorage` presence (length only, never the key), `selectChatModels({ vendor })` counts for both `cline` and `cline-pass` polled at 0/500/1500 ms, and the result of the `setContext` workaround. Pinpoints exactly where the registration pipeline breaks when models are missing from the picker on a fresh install or a second machine. Ported from the `zai-copilot-chat` v0.4.0 fix for the same class of bug. `[Extension]`
+- **`setContext('github.copilot.clientByokEnabled', true)` workaround.** Keeps the **Manage Models** gear icon in the Copilot Chat picker clickable for BYOK users who are not signed in to GitHub Copilot Chat. The context key defaults to `true` per VS Code's schema but is sometimes left unset until the Copilot extension first touches the context service; forcing it removes that race. Runs only when at least one model is visible to VS Code. `[Extension]`
+- **"Set API Key" toast on missing key.** When the activation banner detects that `SecretStorage` is empty, a one-time warning toast (guarded by the `cline.apiKeyMissingNotified` globalState flag) is shown with a `Set API Key` action button that opens the key-entry command directly. Closes the previous blind spot where `provideLanguageModelChatInformation` returned `[]` with no UI feedback. `[Extension]`
+- **Explicit logging in `provideLanguageModelChatInformation`.** Now logs when the call is cancelled, when returning `[]` due to a missing key (with an explicit hint that SecretStorage is per-device and is not synced by VS Code Settings Sync), and when advertising N models to VS Code (first 3 model ids included). `[Extension]`
+
+### Fixed
+
+- **Dual-provider race condition in `provideLanguageModelChatInformation`.** The key-resolution fallback to `resolveStoredApiKey` was gated on `opts.configuration` being truthy, but VS Code can invoke the method with `configuration === undefined` early in a session — causing `cline` (pay-per-use) to silently return `[]` even when the key was sitting right there in `SecretStorage`. The asymmetry (`cline-pass` advertised normally, `cline` advertised nothing) was previously invisible without the new diagnostics logging. Fixed by calling `resolveStoredApiKey` unconditionally whenever no key is in hand. Pre-existing bug since v0.1.0, made visible and fixed by this patch. `[Extension]`
+
+---
+
 ## [0.1.3] — 2026-07-09
 
 ### Fixed
