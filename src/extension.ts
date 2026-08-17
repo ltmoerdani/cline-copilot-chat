@@ -19,6 +19,11 @@ import {
 import { resolveModelMetadata } from "./metadata";
 import { buildThinkingPayload, buildModelConfigurationSchema, getSettings } from "./thinking";
 import { streamChatCompletions } from "./streaming";
+import {
+  providerEnabledSetting,
+  toggleProviderEnabled,
+  CONFIG_SECTION,
+} from "./providerEnablement";
 
 // ── Extended option types ──────────────────────────────────────────────────
 
@@ -164,6 +169,11 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
     this.getOutputChannel().appendLine(`[${new Date().toISOString()}] ${message}`);
   }
 
+  /** globalState key tracking whether a native BYOK group has ever been configured for this vendor. */
+  private byokGroupKey(): string {
+    return `cline.hasByokGroup.v1.${this.config.vendor}`;
+  }
+
   // ── LanguageModelChatProvider ──────────────────────────────────────────
 
   async provideLanguageModelChatInformation(
@@ -174,25 +184,36 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
     this.log(`[${this.config.displayName}] provideLanguageModelChatInformation CALLED`);
 
     let apiKey = opts.configuration?.apiKey;
-    // BUG FIX (v0.1.4, found via E2E smoke test): the original guard was
-    //   if (!apiKey && opts.configuration) { ... }
-    // which meant: if VS Code calls provideLanguageModelChatInformation WITHOUT
-    // a configuration object (common early in the session), resolveStoredApiKey
-    // was NEVER invoked and we returned [] even when a key WAS stored. In a
-    // dual-provider setup, this manifested as one vendor (e.g. "cline") staying
-    // invisible to the picker while the other ("cline-pass") worked — depending
-    // on which calls happened to include opts.configuration.
-    //
-    // Fix: ALWAYS fall back to SecretStorage when no inline key was provided,
-    // regardless of whether opts.configuration is present.
-    if (!apiKey) {
-      apiKey = await resolveStoredApiKey(this.context.secrets);
-    }
+
     if (apiKey) {
+      // BYOK group call — persist flag so future groupless calls (after the user
+      // deletes the group via Manage Language Models) return [] instead of
+      // re-advertising models from SecretStorage (opencode PR #108 pattern).
+      await this.context.globalState.update(this.byokGroupKey(), true);
       const existing = await this.context.secrets.get(SECRET_KEY);
       if (existing !== apiKey) {
         await this.context.secrets.store(SECRET_KEY, apiKey);
       }
+    } else if (opts.configuration !== undefined) {
+      // Settings-only group call (configuration object present but no apiKey —
+      // e.g. thinking settings changed in the model picker). The groupless call
+      // already serves models via SecretStorage; returning [] here prevents
+      // duplicate models and unblocks Delete/Update API Key on this group
+      // (opencode PR #135 / issue #131 pattern).
+      this.log(`[${this.config.displayName}] per-model config group (no apiKey) — returning [].`);
+      return [];
+    }
+
+    if (!apiKey) {
+      if (this.context.globalState.get<boolean>(this.byokGroupKey(), false)) {
+        // BYOK group was configured but this call carries no group key — the user
+        // deleted the group. Return [] so the provider disappears from the picker.
+        this.log(`[${this.config.displayName}] BYOK group deleted — returning [] to honor Delete.`);
+        return [];
+      }
+      // No BYOK group ever configured — fall back to SecretStorage (key set via
+      // 'Set API Key' command, not the native BYOK flow). v0.1.4 fix preserved.
+      apiKey = await resolveStoredApiKey(this.context.secrets);
     }
 
     if (token.isCancellationRequested) {
@@ -389,17 +410,22 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
   // ── Commands ──────────────────────────────────────────────────────────
 
   async manage(): Promise<void> {
-    const apiKey = await resolveStoredApiKey(this.context.secrets);
-    if (!apiKey) {
-      await this.setApiKey();
-      return;
-    }
+    // Read via the full root-config key so the provider can be removed from
+    // the Language Models list even when no API key is set (the old early
+    // return on missing key is removed so "Remove from Language Models" stays
+    // reachable).
+    const providerEnabled = vscode.workspace
+      .getConfiguration()
+      .get<boolean>(providerEnabledSetting(this.config.vendor), true);
 
     const choice = await vscode.window.showQuickPick(
       [
         { label: "Set API Key", action: "set" as const },
         { label: "Clear API Key", action: "clear" as const },
         { label: "Test Connection", action: "test" as const },
+        ...(providerEnabled
+          ? [{ label: "Remove from Language Models", action: "remove" as const }]
+          : [{ label: "Re-add to Language Models", action: "remove" as const }]),
       ],
       { title: `${this.config.displayName} Provider`, placeHolder: "Choose an action" },
     );
@@ -409,10 +435,14 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       case "set": await this.setApiKey(); break;
       case "clear":
         await this.context.secrets.delete(SECRET_KEY);
+        await this.context.globalState.update(this.byokGroupKey(), false);
         this.changeEmitter.fire();
         vscode.window.showInformationMessage(`${this.config.displayName} API key cleared.`);
         break;
       case "test": await this.testConnection(); break;
+      case "remove":
+        await toggleProviderEnabled(this.config.vendor, this.config.displayName);
+        break;
     }
   }
 
@@ -770,18 +800,35 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  // Register both providers
+  // Register both providers — gated by the per-provider `enabled` setting so a
+  // disabled provider disappears from the Language Models list and every model
+  // picker (mirrors opencode-copilot-chat PR #125).
+  const paygEnabled = vscode.workspace
+    .getConfiguration()
+    .get<boolean>(providerEnabledSetting(CLINE_VENDOR), true);
+  const passEnabled = vscode.workspace
+    .getConfiguration()
+    .get<boolean>(providerEnabledSetting(CLINE_PASS_VENDOR), true);
+
   const subscriptions: vscode.Disposable[] = [
-    vscode.lm.registerLanguageModelChatProvider(CLINE_VENDOR, paygProvider),
-    vscode.lm.registerLanguageModelChatProvider(CLINE_PASS_VENDOR, passProvider),
+    ...(paygEnabled ? [vscode.lm.registerLanguageModelChatProvider(CLINE_VENDOR, paygProvider)] : []),
+    ...(passEnabled ? [vscode.lm.registerLanguageModelChatProvider(CLINE_PASS_VENDOR, passProvider)] : []),
   ];
 
-  outputChannel.appendLine(`[ClineCopilotChat] ✅ Registered: ${CLINE_VENDOR}, ${CLINE_PASS_VENDOR}`);
+  outputChannel.appendLine(
+    `[ClineCopilotChat] ✅ Registered: ${CLINE_VENDOR}=${paygEnabled}, ${CLINE_PASS_VENDOR}=${passEnabled}`,
+  );
 
   // Commands — shared across both providers (same API key)
   subscriptions.push(
     vscode.commands.registerCommand("clineCopilotChat.manage", () => paygProvider.manage()),
     vscode.commands.registerCommand("clineCopilotChat.setApiKey", () => paygProvider.setApiKey()),
+    vscode.commands.registerCommand("clineCopilotChat.toggleProvider", () =>
+      toggleProviderEnabled(CLINE_VENDOR, "Cline"),
+    ),
+    vscode.commands.registerCommand("clineCopilotChat.toggleProviderPass", () =>
+      toggleProviderEnabled(CLINE_PASS_VENDOR, "ClinePass"),
+    ),
     vscode.commands.registerCommand("clineCopilotChat.diagnostics", async () => {
       const paygModels = await vscode.lm.selectChatModels({ vendor: CLINE_VENDOR });
       const passModels = await vscode.lm.selectChatModels({ vendor: CLINE_PASS_VENDOR });

@@ -117,33 +117,15 @@ export function buildThinkingPayload(
   }
 }
 
-/** JSON schema property for the Cline API key — always included in model-level configuration
- * so it remains editable via VS Code's model settings panel regardless of whether VS Code
- * surfaces the vendor-level `languageModelChatProviders.configuration` UI.
- */
-const API_KEY_SCHEMA_PROPERTY = {
-  apiKey: {
-    type: "string",
-    title: "Cline API Key",
-    description: "Your Cline API key from app.cline.bot → Settings → API Keys.",
-    secret: true,
-  },
-};
-
-/**
- * Build the full model configuration schema: always includes apiKey, plus
- * optional thinking-mode properties for models that support it.
+/** Returns the per-model configuration schema for thinking settings only.
+ * apiKey is intentionally excluded — it lives only in the vendor-level
+ * languageModelChatProviders.configuration so VS Code doesn't create
+ * settings-only groups that block Delete/Update API Key (opencode PR #135).
  */
 export function buildModelConfigurationSchema(
   modelId: string,
-): { properties: Record<string, unknown> } {
-  const thinkingSchema = buildFamilyThinkingSchema(modelId);
-  return {
-    properties: {
-      ...API_KEY_SCHEMA_PROPERTY,
-      ...(thinkingSchema?.properties ?? {}),
-    },
-  };
+): { properties: Record<string, unknown> } | undefined {
+  return buildFamilyThinkingSchema(modelId);
 }
 
 export function buildFamilyThinkingSchema(

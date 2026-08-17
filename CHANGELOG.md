@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.5] — 2026-08-17
+
+### Added
+
+- **Remove / re-add providers in Language Models.** Both `Cline` and `ClinePass` can now be removed from VS Code's Manage Language Models list and every model picker via a new per-provider `enabled` setting (`clineCopilotChat.enabled` / `clineCopilotChat.clinePass.enabled`), a `when` clause on each vendor contribution, and gated runtime registration. The Manage Provider QuickPick gains a **"Remove from Language Models"** / **"Re-add to Language Models"** action (reachable even without an API key), plus two new commands (`Cline Copilot Chat: Remove/Re-add Cline in Language Models` and the ClinePass equivalent). API keys and BYOK groups are kept, so re-enabling restores the provider exactly as it was. A window reload is required after toggling. Ported from `opencode-copilot-chat` PR #125 (issue #122). `[Extension]`
+
+### Fixed
+
+- **Delete / Update API Key on a group did nothing.** The per-model `configurationSchema` included `apiKey`, which made VS Code create a **settings-only BYOK group** (no real key) whenever a per-model option like thinking mode was changed. VS Code then called `provideLanguageModelChatInformation` for that group with `opts.configuration = {}` (not `undefined`), which fell through to the SecretStorage fallback — duplicating every model and confusing group management so Delete / Update API Key had no effect. Fixed by (1) removing `apiKey` from the per-model `configurationSchema` (it now lives only in the vendor-level `languageModelChatProviders.configuration`), and (2) returning `[]` when a group call carries a `configuration` object but no `apiKey` (a settings-only group). Also added a per-vendor `hasByokGroup` flag so a groupless call after a native BYOK group is deleted returns `[]` instead of re-advertising from SecretStorage. Ported from `opencode-copilot-chat` PR #135 (issue #131) + PR #108 (issue #106). `[Extension]`
+
+---
+
 ## [0.1.4] — 2026-07-19
 
 ### Added
