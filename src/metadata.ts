@@ -23,14 +23,16 @@ export interface ResolvedModelMetadata extends ModelLimits {
 // ── ClinePass models ($9.99/mo subscription) ──────────────────────────────
 
 export const CLINEPASS_MODELS: Record<string, ModelLimits> = {
-  "cline-pass/glm-5.2":             { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
-  "cline-pass/kimi-k2.7-code":      { contextWindow: 256_000,  maxOutputTokens: 262_144 },
-  "cline-pass/kimi-k2.6":           { contextWindow: 256_000,  maxOutputTokens: 65_536 },
+  "cline-pass/glm-5.2":             { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  "cline-pass/kimi-k3":             { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
+  "cline-pass/kimi-k2.7-code":      { contextWindow: 262_144,  maxOutputTokens: 262_144 },
+  "cline-pass/kimi-k2.6":           { contextWindow: 262_144,  maxOutputTokens: 65_536 },
   "cline-pass/deepseek-v4-pro":     { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
   "cline-pass/deepseek-v4-flash":   { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
   "cline-pass/mimo-v2.5":           { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   "cline-pass/mimo-v2.5-pro":       { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   "cline-pass/minimax-m3":          { contextWindow: 192_000,  maxOutputTokens: 131_072 },
+  "cline-pass/qwen3.8-max":         { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
   "cline-pass/qwen3.7-max":         { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
   "cline-pass/qwen3.7-plus":        { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
 };
@@ -54,16 +56,18 @@ export const CLINE_MODELS: Record<string, ModelLimits> = {
   "xai/grok-3":                     { contextWindow: 131_072,   maxOutputTokens: 16_384 },
   "xai/grok-4":                     { contextWindow: 256_000,   maxOutputTokens: 16_384 },
   // Z.ai / GLM
-  "zai/glm-5.2":                    { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
+  "zai/glm-5.2":                    { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   // Moonshot / Kimi
-  "moonshot/kimi-k2.7-code":        { contextWindow: 256_000,   maxOutputTokens: 262_144 },
-  "moonshot/kimi-k2.6":             { contextWindow: 256_000,   maxOutputTokens: 65_536 },
+  "moonshot/kimi-k3":               { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
+  "moonshot/kimi-k2.7-code":        { contextWindow: 262_144,   maxOutputTokens: 262_144 },
+  "moonshot/kimi-k2.6":             { contextWindow: 262_144,   maxOutputTokens: 65_536 },
   // MiMo
   "mimo/mimo-v2.5":                 { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   "mimo/mimo-v2.5-pro":             { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   // MiniMax
   "minimax/minimax-m3":             { contextWindow: 192_000,   maxOutputTokens: 131_072 },
   // Qwen
+  "qwen/qwen3.8-max":              { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
   "qwen/qwen3.7-max":              { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
   "qwen/qwen3.7-plus":             { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
   // Mistral
@@ -78,7 +82,7 @@ export const CLINE_MODELS: Record<string, ModelLimits> = {
 
 const DEFAULT_LIMITS: ModelLimits = { contextWindow: 128_000, maxOutputTokens: 65_536 };
 
-// Vision-capable models (confirmed via official provider docs, Jul 2026)
+// Vision-capable models (confirmed via official provider docs, Aug 2026)
 // Sources: OpenAI ("all latest models support vision"), xAI (image input docs),
 // Mistral (vision model list), Meta ("natively multimodal"), Kimi (text/image/video),
 // MiniMax M3 ("多模态 Chat 输入"), Alibaba Bailian (vision understanding list).
@@ -86,12 +90,15 @@ const DEFAULT_LIMITS: ModelLimits = { contextWindow: 128_000, maxOutputTokens: 6
 // vision evidence in any official source. DeepSeek V3/V4/R1/Chat are text-only
 // (separate DeepSeek-VL line exists for vision). Cohere Command R+ is text-only
 // (separate Command A Vision model). Perplexity Sonar is text-only search.
+// GLM-5.2 REMOVED — Z.ai docs list Input/Output Modalities as Text only
+// (separate GLM-5V line exists for vision).
 const VISION_CAPABLE_MODELS = new Set([
   // ClinePass
-  "cline-pass/glm-5.2",
+  "cline-pass/kimi-k3",
   "cline-pass/kimi-k2.7-code",
   "cline-pass/kimi-k2.6",
   "cline-pass/minimax-m3",
+  "cline-pass/qwen3.8-max",
   "cline-pass/qwen3.7-plus",
   // Pay-per-use
   "openai/gpt-4o",
@@ -100,10 +107,11 @@ const VISION_CAPABLE_MODELS = new Set([
   "google/gemini-2.5-pro",
   "xai/grok-3",
   "xai/grok-4",
-  "zai/glm-5.2",
+  "moonshot/kimi-k3",
   "moonshot/kimi-k2.7-code",
   "moonshot/kimi-k2.6",
   "minimax/minimax-m3",
+  "qwen/qwen3.8-max",
   "qwen/qwen3.7-plus",
   "mistral/mistral-large",
   "meta/llama-4-maverick",
@@ -113,6 +121,7 @@ const VISION_CAPABLE_MODELS = new Set([
 const REASONING_MODELS = new Set([
   // ClinePass
   "cline-pass/glm-5.2",
+  "cline-pass/kimi-k3",
   "cline-pass/kimi-k2.7-code",
   "cline-pass/kimi-k2.6",
   "cline-pass/deepseek-v4-pro",
@@ -120,6 +129,7 @@ const REASONING_MODELS = new Set([
   "cline-pass/mimo-v2.5",
   "cline-pass/mimo-v2.5-pro",
   "cline-pass/minimax-m3",
+  "cline-pass/qwen3.8-max",
   "cline-pass/qwen3.7-max",
   "cline-pass/qwen3.7-plus",
   // Pay-per-use
@@ -129,10 +139,12 @@ const REASONING_MODELS = new Set([
   "openai/o3",
   "google/gemini-2.5-pro",
   "zai/glm-5.2",
+  "moonshot/kimi-k3",
   "moonshot/kimi-k2.7-code",
   "moonshot/kimi-k2.6",
   "mimo/mimo-v2.5",
   "mimo/mimo-v2.5-pro",
+  "qwen/qwen3.8-max",
   "qwen/qwen3.7-max",
   "qwen/qwen3.7-plus",
 ]);

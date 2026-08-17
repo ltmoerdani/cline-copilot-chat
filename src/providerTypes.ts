@@ -3,7 +3,7 @@
  *
  * Two providers from a single API key:
  *   1. **Cline** — pay-per-use billing (100+ models: DeepSeek, Claude, GPT, Gemini…)
- *   2. **ClinePass** — $9.99/mo subscription for 10 curated open-weight models
+ *   2. **ClinePass** — $9.99/mo subscription for 12 curated open-weight models
  *      with 2–5× rate limits.
  *
  * Both share the same endpoint (api.cline.bot) and the same API key.
@@ -15,7 +15,7 @@
 /** Pay-per-use provider — 100+ models billed per token. */
 export const CLINE_VENDOR = "cline" as const;
 
-/** Subscription provider — 10 curated models, flat $9.99/mo. */
+/** Subscription provider — 12 curated models, flat $9.99/mo. */
 export const CLINE_PASS_VENDOR = "cline-pass" as const;
 
 /** Base vendor type for per-provider code paths. */

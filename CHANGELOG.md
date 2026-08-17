@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.6] — 2026-08-17
+
+### Added
+
+- **Kimi K3 model.** Added `cline-pass/kimi-k3` (ClinePass) and `moonshot/kimi-k3` (pay-per-use). Kimi's flagship 2.8T-parameter model with 1M context, 131K max output, native vision, and always-on reasoning. `[Models]`
+- **Qwen3.8 Max model.** Added `cline-pass/qwen3.8-max` (ClinePass) and `qwen/qwen3.8-max` (pay-per-use). Qwen's flagship model with 1M context, 65K max output, vision, and reasoning. `[Models]`
+
+### Changed
+
+- **GLM-5.2 spec corrected.** Max output corrected from 131K to **128K**, and GLM-5.2 removed from the vision-capable set — Z.ai docs list Input/Output Modalities as **Text only** (a separate GLM-5V line exists for vision). Applies to both `cline-pass/glm-5.2` and `zai/glm-5.2`. `[Models]`
+- **Kimi K2.6 / K2.7 Code context corrected.** Context window corrected from 256K to **262K** per platform.kimi.ai pricing. Applies to both ClinePass and pay-per-use variants. `[Models]`
+
+---
+
 ## [0.1.5] — 2026-08-17
 
 ### Added

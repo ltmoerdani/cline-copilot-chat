@@ -3,7 +3,7 @@
  *
  * Two providers, one API key:
  *   1. **Cline** (pay-per-use) — 100+ models across DeepSeek, Claude, GPT, Gemini…
- *   2. **ClinePass** ($9.99/mo) — 10 curated open-weight models with 2-5× rate limits.
+ *   2. **ClinePass** ($9.99/mo) — 12 curated open-weight models with 2-5× rate limits.
  *
  * Both share the same endpoint (api.cline.bot) and the same API key.
  * The model-ID prefix determines billing: `deepseek/` vs `cline-pass/`.
@@ -61,6 +61,7 @@ interface ModelDef {
 
 const CLINEPASS_MODEL_DEFS: ModelDef[] = [
   { id: "cline-pass/glm-5.2",             name: "GLM 5.2",              family: "Z.ai" },
+  { id: "cline-pass/kimi-k3",             name: "Kimi K3",              family: "Moonshot AI" },
   { id: "cline-pass/kimi-k2.7-code",      name: "Kimi K2.7 Code",       family: "Moonshot AI" },
   { id: "cline-pass/kimi-k2.6",           name: "Kimi K2.6",            family: "Moonshot AI" },
   { id: "cline-pass/deepseek-v4-pro",     name: "DeepSeek V4 Pro",      family: "DeepSeek" },
@@ -68,6 +69,7 @@ const CLINEPASS_MODEL_DEFS: ModelDef[] = [
   { id: "cline-pass/mimo-v2.5",           name: "MiMo V2.5",            family: "MiMo" },
   { id: "cline-pass/mimo-v2.5-pro",       name: "MiMo V2.5 Pro",        family: "MiMo" },
   { id: "cline-pass/minimax-m3",          name: "MiniMax M3",           family: "MiniMax" },
+  { id: "cline-pass/qwen3.8-max",         name: "Qwen3.8 Max",          family: "Qwen" },
   { id: "cline-pass/qwen3.7-max",         name: "Qwen3.7 Max",          family: "Qwen" },
   { id: "cline-pass/qwen3.7-plus",        name: "Qwen3.7 Plus",         family: "Qwen" },
 ];
@@ -91,6 +93,7 @@ const CLINE_MODEL_DEFS: ModelDef[] = [
   // Z.ai / GLM — 402 MODEL VALID
   { id: "zai/glm-5.2",                    name: "GLM 5.2",               family: "Z.ai" },
   // Moonshot / Kimi — 402 MODEL VALID
+  { id: "moonshot/kimi-k3",               name: "Kimi K3",               family: "Moonshot AI" },
   { id: "moonshot/kimi-k2.7-code",        name: "Kimi K2.7 Code",        family: "Moonshot AI" },
   { id: "moonshot/kimi-k2.6",             name: "Kimi K2.6",             family: "Moonshot AI" },
   // MiMo — 402 MODEL VALID
@@ -99,6 +102,7 @@ const CLINE_MODEL_DEFS: ModelDef[] = [
   // MiniMax — 402 MODEL VALID
   { id: "minimax/minimax-m3",             name: "MiniMax M3",            family: "MiniMax" },
   // Qwen — 402 MODEL VALID
+  { id: "qwen/qwen3.8-max",              name: "Qwen3.8 Max",           family: "Qwen" },
   { id: "qwen/qwen3.7-max",              name: "Qwen3.7 Max",           family: "Qwen" },
   { id: "qwen/qwen3.7-plus",             name: "Qwen3.7 Plus",          family: "Qwen" },
   // Mistral — 402 MODEL VALID

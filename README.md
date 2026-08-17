@@ -116,12 +116,14 @@ Models are billed per token. No subscription required, just an API key and credi
 | **Gemini 2.5 Pro** | `google/gemini-2.5-pro` | 1M | 65K |
 | **Grok 3** | `xai/grok-3` | 131K | 16K |
 | **Grok 4** | `xai/grok-4` | 256K | 16K |
-| **GLM 5.2** | `zai/glm-5.2` | 1M | 131K |
-| **Kimi K2.7 Code** | `moonshot/kimi-k2.7-code` | 256K | 262K |
-| **Kimi K2.6** | `moonshot/kimi-k2.6` | 256K | 65K |
+| **GLM 5.2** | `zai/glm-5.2` | 1M | 128K |
+| **Kimi K3** | `moonshot/kimi-k3` | 1M | 131K |
+| **Kimi K2.7 Code** | `moonshot/kimi-k2.7-code` | 262K | 262K |
+| **Kimi K2.6** | `moonshot/kimi-k2.6` | 262K | 65K |
 | **MiMo V2.5** | `mimo/mimo-v2.5` | 1M | 128K |
 | **MiMo V2.5 Pro** | `mimo/mimo-v2.5-pro` | 1M | 128K |
 | **MiniMax M3** | `minimax/minimax-m3` | 192K | 131K |
+| **Qwen3.8 Max** | `qwen/qwen3.8-max` | 1M | 65K |
 | **Qwen3.7 Max** | `qwen/qwen3.7-max` | 1M | 65K |
 | **Qwen3.7 Plus** | `qwen/qwen3.7-plus` | 1M | 65K |
 | **Mistral Large** | `mistral/mistral-large` | 128K | 8K |
@@ -133,7 +135,7 @@ Models are billed per token. No subscription required, just an API key and credi
 
 > All model IDs validated directly against the Cline API. `anthropic/claude-*` models are NOT currently available on Cline's API despite being listed in their docs.
 
-### ClinePass: $9.99/mo Subscription (10 models)
+### ClinePass: $9.99/mo Subscription (12 models)
 
 Open-weight models with 2 to 5× rate limits vs direct API access. No per-token charges.
 
@@ -141,12 +143,14 @@ Open-weight models with 2 to 5× rate limits vs direct API access. No per-token 
 |---|---|---|---|---|---|
 | **DeepSeek V4 Flash** | `cline-pass/deepseek-v4-flash` | 1M | 384K | ❌ | ✅ |
 | **DeepSeek V4 Pro** | `cline-pass/deepseek-v4-pro` | 1M | 384K | ❌ | ✅ |
-| **GLM 5.2** | `cline-pass/glm-5.2` | 1M | 131K | ✅ | ✅ |
-| **Kimi K2.7 Code** | `cline-pass/kimi-k2.7-code` | 256K | 262K | ✅ | ✅ |
-| **Kimi K2.6** | `cline-pass/kimi-k2.6` | 256K | 65K | ✅ | ✅ |
-| **MiMo V2.5** | `cline-pass/mimo-v2.5` | 1M | 128K | ✅ | ✅ |
-| **MiMo V2.5 Pro** | `cline-pass/mimo-v2.5-pro` | 1M | 128K | ✅ | ✅ |
+| **GLM 5.2** | `cline-pass/glm-5.2` | 1M | 128K | ❌ | ✅ |
+| **Kimi K3** | `cline-pass/kimi-k3` | 1M | 131K | ✅ | ✅ |
+| **Kimi K2.7 Code** | `cline-pass/kimi-k2.7-code` | 262K | 262K | ✅ | ✅ |
+| **Kimi K2.6** | `cline-pass/kimi-k2.6` | 262K | 65K | ✅ | ✅ |
+| **MiMo V2.5** | `cline-pass/mimo-v2.5` | 1M | 128K | ❌ | ✅ |
+| **MiMo V2.5 Pro** | `cline-pass/mimo-v2.5-pro` | 1M | 128K | ❌ | ✅ |
 | **MiniMax M3** | `cline-pass/minimax-m3` | 192K | 131K | ✅ | ✅ |
+| **Qwen3.8 Max** | `cline-pass/qwen3.8-max` | 1M | 65K | ✅ | ✅ |
 | **Qwen3.7 Max** | `cline-pass/qwen3.7-max` | 1M | 65K | ❌ | ✅ |
 | **Qwen3.7 Plus** | `cline-pass/qwen3.7-plus` | 1M | 65K | ✅ | ✅ |
 
