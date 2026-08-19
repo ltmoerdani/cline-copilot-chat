@@ -6,15 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [Unreleased]
+## [0.1.8] — 2026-08-19
 
 ### Added
 
 - **Image attachment normalization (vision token-cost fix).** Image attachments (drag & drop, paste) are now normalized before the request leaves the extension: oversized dimensions are resized to ≤2000×2000 (Lanczos3) and re-encoded PNG → JPEG (quality ladder 80/85/70/55/40) until the base64 payload fits ≤5MB — via new `src/imageNormalizer.ts` using `@silvia-odwyer/photon-node` (WASM, no native deps, ~2.3MB, lazy-loaded on first image request). Previously raw image bytes were forwarded untouched, so a 4K screenshot cost several × more vision tokens AND was re-sent full-size in the history on every subsequent turn. Images already within spec pass through byte-identical; an image whose normalized base64 still exceeds 5MB becomes a placeholder text part instead of failing the request. `convertMessagesToApi()` is now async and logs a `Normalized N oversized image(s)` line for observability. Ported from `opencode-copilot-chat` (`src/imageNormalizer.ts`, feature doc 13-20260803). `[Extension]` `[Vision]`
-
----
-
-## [0.1.8] — 2026-08-19
 
 ### Fixed
 
