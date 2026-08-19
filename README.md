@@ -213,6 +213,33 @@ ClinePass gives 2-5× the standard API limits. Measured over 5-hour rolling, wee
 
 ## � Troubleshooting
 
+### HTTP 403 — "only available via Cline product surfaces"
+
+Some models were moved by Cline off the public API-key path and now only work inside the Cline app (IDE extension / CLI) with an account sign-in. Requesting them through an API key returns:
+
+```
+Error 403: <model> is only available via Cline product surfaces.
+```
+
+Your API key is fine — the model itself is what's locked out of the API.
+
+**What the extension does:** confirmed-blocked models are hidden from the picker, and the error message shown in chat explains the cause instead of a generic 403. Confirmed so far: `deepseek/deepseek-v4-flash` (verified Aug 2026, [issue #3](https://github.com/ltmoerdani/cline-copilot-chat/issues/3)).
+
+**Fix:** pick a model that is still served over the API — e.g. `deepseek/deepseek-chat`, `minimax/minimax-m3`, or any ClinePass model — or use the Cline IDE extension / CLI for the blocked model with account sign-in.
+
+To check whether a specific model still works with your key:
+
+```bash
+curl -X POST https://api.cline.bot/api/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"deepseek/deepseek-chat","messages":[{"role":"user","content":"hi"}],"stream":false}'
+```
+
+- `200` — the model works via API key
+- `403 ... product surfaces` — blocked; report it in [issue #3](https://github.com/ltmoerdani/cline-copilot-chat/issues/3) so it can be added to the hidden list
+- `401` — your key needs re-creating at app.cline.bot
+
 ### Models missing from the picker on a fresh install or a second machine
 
 VS Code **Settings Sync does not sync `SecretStorage`** for security reasons. When you install the extension on a new machine and sign in with Settings Sync, the extension downloads, but your API key does not — so `provideLanguageModelChatInformation` returns an empty list and the picker shows zero Cline / ClinePass models.

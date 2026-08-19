@@ -65,6 +65,7 @@ export const CLINE_MODELS: Record<string, ModelLimits> = {
   "mimo/mimo-v2.5":                 { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   "mimo/mimo-v2.5-pro":             { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   // MiniMax
+  "minimax/minimax-m2.5":             { contextWindow: 204_800,    maxOutputTokens: 131_072 },
   "minimax/minimax-m3":             { contextWindow: 192_000,   maxOutputTokens: 131_072 },
   // Qwen
   "qwen/qwen3.8-max":              { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
@@ -144,10 +145,38 @@ const REASONING_MODELS = new Set([
   "moonshot/kimi-k2.6",
   "mimo/mimo-v2.5",
   "mimo/mimo-v2.5-pro",
+  "minimax/minimax-m2.5",
   "qwen/qwen3.8-max",
   "qwen/qwen3.7-max",
   "qwen/qwen3.7-plus",
 ]);
+
+/**
+ * Models CONFIRMED (via live API probe, Issue #3) to be rejected with
+ * HTTP 403 "only available via Cline product surfaces" when requested with
+ * a public API key. Cline moved these off the API-key path; they now only
+ * work inside the Cline IDE extension / CLI with an account token.
+ *
+ * RULES:
+ * - Keep the entries in CLINE_MODELS / CLINEPASS_MODELS above intact — the
+ *   bundled limits snapshot must stay complete (guardrail: never delete
+ *   bundled metadata).
+ * - Only add a model here after a live 403 with the exact "product surfaces"
+ *   message — do not guess. Suspect models stay advertised until confirmed.
+ * - Entries are hidden from the model picker but metadata remains resolvable
+ *   for any cached requests that still reference them.
+ */
+export const PRODUCT_SURFACES_ONLY_MODELS = new Set<string>([
+  // Confirmed 2026-08-18 via curl with a valid key (Issue #3, SPIERWIN):
+  // "Error 403: deepseek/deepseek-v4-flash is only available via Cline
+  //  product surfaces."
+  "deepseek/deepseek-v4-flash",
+]);
+
+/** Whether a model ID is confirmed blocked from the public API-key path. */
+export function isProductSurfacesOnlyModel(modelId: string): boolean {
+  return PRODUCT_SURFACES_ONLY_MODELS.has(modelId);
+}
 
 /** Merged lookup table for resolveModelMetadata(). */
 const ALL_MODEL_LIMITS: Record<string, ModelLimits> = {
