@@ -20,6 +20,11 @@ import { resolveModelMetadata, isProductSurfacesOnlyModel } from "./metadata";
 import { buildThinkingPayload, buildModelConfigurationSchema, getSettings } from "./thinking";
 import { streamChatCompletions } from "./streaming";
 import { estimateTokenCount, estimateChatMessageTokenCount } from "./tokens";
+import {
+  MAX_IMAGE_BASE64_BYTES,
+  getImageDataUrlBase64Bytes,
+  normalizeImageDataUrl,
+} from "./imageNormalizer";
 import { ClineCopilotChatRequestError } from "./errors";
 import {
   providerEnabledSetting,
@@ -346,7 +351,13 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
     this.log(`[${this.config.displayName}] rawModelId=${rawModelId} (model.id=${model.id} rawModelId=${model.rawModelId ?? "UNSET"})`);
     const settings = getSettings();
 
-    const apiMessages = convertMessagesToApi(messages);
+    const { messages: apiMessages, normalizedImageCount } = await convertMessagesToApi(messages);
+    if (normalizedImageCount > 0) {
+      this.log(
+        `[${this.config.displayName}] Normalized ${normalizedImageCount} oversized image(s) ` +
+          `(≤2000×2000, ≤${Math.floor(MAX_IMAGE_BASE64_BYTES / (1024 * 1024))}MB base64)`,
+      );
+    }
 
     const copilotTools = options.tools;
     const toolNames = new Set<string>();
@@ -586,10 +597,22 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function convertMessagesToApi(
+/**
+ * CONTRACT (ported from opencode-copilot-chat `provider/messages.ts`):
+ * - Image DataParts are NORMALIZED before the final payload guard: resize to
+ *   ≤2000×2000 (Lanczos3) + re-encode PNG→JPEG ladder until base64 ≤5MB
+ *   (`imageNormalizer.ts`, lazy WASM via @silvia-odwyer/photon-node).
+ * - An image whose NORMALIZED base64 still exceeds MAX_IMAGE_BASE64_BYTES is
+ *   replaced with a placeholder text part — never silently dropped.
+ * - Images already within spec pass through byte-identical.
+ * - normalizedImageCount counts only images actually re-encoded; callers log
+ *   it for observability.
+ */
+async function convertMessagesToApi(
   messages: readonly vscode.LanguageModelChatRequestMessage[],
-): Array<Record<string, unknown>> {
+): Promise<{ messages: Array<Record<string, unknown>>; normalizedImageCount: number }> {
   const result: Array<Record<string, unknown>> = [];
+  let normalizedImageCount = 0;
 
   for (const msg of messages) {
     const isUser = msg.role === vscode.LanguageModelChatMessageRole.User;
@@ -601,7 +624,7 @@ function convertMessagesToApi(
         : (msg.content as readonly vscode.LanguageModelInputPart[]);
 
     const textParts: string[] = [];
-    const imageParts: Array<{ mimeType: string; data: string }> = [];
+    const imageParts: string[] = [];
     const toolCalls: Array<Record<string, unknown>> = [];
     const toolResults: Array<Record<string, unknown>> = [];
 
@@ -609,8 +632,23 @@ function convertMessagesToApi(
       if (part instanceof vscode.LanguageModelTextPart) {
         if (part.value) textParts.push(part.value);
       } else if (part instanceof vscode.LanguageModelDataPart && part.mimeType.startsWith("image/")) {
-        // Convert image bytes to base64 data URI for OpenAI-compatible vision API.
-        imageParts.push({ mimeType: part.mimeType, data: uint8ArrayToBase64(part.data) });
+        // Convert image bytes to a base64 data URI, then normalize (resize +
+        // re-encode) oversized payloads for OpenAI-compatible vision APIs.
+        const originalUrl = `data:${part.mimeType};base64,${uint8ArrayToBase64(part.data)}`;
+        const normalizedUrl = await normalizeImageDataUrl(originalUrl);
+        if (normalizedUrl !== originalUrl) {
+          normalizedImageCount += 1;
+        }
+        const base64Bytes = getImageDataUrlBase64Bytes(normalizedUrl);
+        if (base64Bytes === undefined || base64Bytes > MAX_IMAGE_BASE64_BYTES) {
+          textParts.push(
+            `[Image attachment omitted: normalized payload exceeds the ` +
+              `${Math.floor(MAX_IMAGE_BASE64_BYTES / (1024 * 1024))} MB base64 limit. ` +
+              `Resize or compress the image and re-attach it.]`,
+          );
+        } else {
+          imageParts.push(normalizedUrl);
+        }
       } else if (part instanceof vscode.LanguageModelToolCallPart) {
         toolCalls.push({
           id: part.callId,
@@ -645,10 +683,10 @@ function convertMessagesToApi(
       // Only used when images are present; plain text keeps string format for efficiency.
       const contentParts: Array<Record<string, unknown>> = [];
       if (joinedText) contentParts.push({ type: "text", text: joinedText });
-      for (const img of imageParts) {
+      for (const imageUrl of imageParts) {
         contentParts.push({
           type: "image_url",
-          image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+          image_url: { url: imageUrl },
         });
       }
       entry.content = contentParts;
@@ -659,7 +697,7 @@ function convertMessagesToApi(
     for (const tr of toolResults) result.push(tr);
   }
 
-  return result;
+  return { messages: result, normalizedImageCount };
 }
 
 // ── VS Code 1.128 BYOK utility model auto-fix ─────────────────────────────

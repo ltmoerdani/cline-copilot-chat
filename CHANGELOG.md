@@ -6,11 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Image attachment normalization (vision token-cost fix).** Image attachments (drag & drop, paste) are now normalized before the request leaves the extension: oversized dimensions are resized to ≤2000×2000 (Lanczos3) and re-encoded PNG → JPEG (quality ladder 80/85/70/55/40) until the base64 payload fits ≤5MB — via new `src/imageNormalizer.ts` using `@silvia-odwyer/photon-node` (WASM, no native deps, ~2.3MB, lazy-loaded on first image request). Previously raw image bytes were forwarded untouched, so a 4K screenshot cost several × more vision tokens AND was re-sent full-size in the history on every subsequent turn. Images already within spec pass through byte-identical; an image whose normalized base64 still exceeds 5MB becomes a placeholder text part instead of failing the request. `convertMessagesToApi()` is now async and logs a `Normalized N oversized image(s)` line for observability. Ported from `opencode-copilot-chat` (`src/imageNormalizer.ts`, feature doc 13-20260803). `[Extension]` `[Vision]`
+
+---
+
 ## [0.1.8] — 2026-08-19
 
 ### Fixed
 
 - **Think tags leaking into chat for DeepSeek V4 Flash (and other reasoning models) in agent mode.** When using reasoning models with tools enabled (Copilot Chat agent mode), `<think>...</think>` tags and their contents leaked into the visible chat output as unreadable raw text instead of being stripped. Fixed with two changes ported from `opencode-copilot-chat`: (1) `src/streaming.ts` now uses a stateful `ThinkTagFilter` class (ported from `opencode-copilot-chat/src/transports/thinkTags.ts`) that handles `<think>` tags split across SSE chunks, unclosed tags at end of stream, and boundary matching — replacing the previous regex-based filter that could miss split tags; (2) `src/extension.ts` now sets `forceStripThinkTags: true` when tools are present (agent mode), forcing think-tag stripping regardless of the `stripThinkTags` mode — matching `opencode-copilot-chat`'s `OpenCodeProvider` behavior. `[Extension]`
+- **MiMo models could loop forever without `repetition_penalty`.** MiMo V2.5 / V2.5 Pro (both `cline-pass/` and `mimo/` variants) hit a known upstream infinite-generation bug ([XiaomiMiMo/MiMo-Code#914](https://github.com/XiaomiMiMo/MiMo-Code/issues/914)) when `repetition_penalty` is absent. The thinking payload builder now always sends `repetition_penalty: 1.2` for MiMo models — including when thinking is `"off"` (previously the penalty was only sent with reasoning enabled, and `"off"` sent an empty payload). Ported from `opencode-copilot-chat` (`a30c4a6` + `01ffde1`). `[Thinking]`
+- **User abort during a retry backoff surfaced a stale gateway error.** When the user cancelled a request while the extension was waiting out a retry delay (after a network error or a transient HTTP 429/5xx), the loop re-fetched and reported the stale failure as if it were fresh. Both retry paths in `src/streaming.ts` now check `isCancellationRequested` after the backoff wait and fail cleanly as `AbortError`. Ported from `opencode-copilot-chat` (`42eeb56`). `[Streaming]`
+- **Out-of-range `temperature` setting caused HTTP 400 before retries could help.** A misconfigured `clineCopilotChat.temperature` (e.g. a huge or negative number) was passed through to the API verbatim, which providers reject with 400. `getSettings()` now clamps the value to the provider-accepted `[0, 2]` range with a sane numeric fallback. Ported from `opencode-copilot-chat` (`15643f5`). `[Settings]`
+- **Missing `Accept` header on chat POST requests.** Streaming requests now send `Accept: application/json` alongside `Content-Type` — some gateways reject or mis-route POSTs without it. Ported from `opencode-copilot-chat` (`27f368c`). `[Streaming]`
 
 ---
 

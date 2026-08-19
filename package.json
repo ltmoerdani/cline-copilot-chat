@@ -270,5 +270,8 @@
 		"@types/vscode": "^1.120.0",
 		"@vscode/vsce": "^3.6.0",
 		"typescript": "^6.0.3"
+	},
+	"dependencies": {
+		"@silvia-odwyer/photon-node": "^0.3.4"
 	}
 }

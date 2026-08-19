@@ -2,6 +2,16 @@
 .vscode-test/**
 src/**
 node_modules/**
+# Image normalization runtime (WASM) — must ship in the VSIX
+# (ported from opencode-copilot-chat; photon_rs.js reads photon_rs_bg.wasm
+#  via fs.readFileSync(__dirname) at require-time).
+!node_modules/@silvia-odwyer/
+!node_modules/@silvia-odwyer/photon-node/
+!node_modules/@silvia-odwyer/photon-node/LICENSE.md
+!node_modules/@silvia-odwyer/photon-node/package.json
+!node_modules/@silvia-odwyer/photon-node/*.js
+!node_modules/@silvia-odwyer/photon-node/*.wasm
+!node_modules/@silvia-odwyer/photon-node/*.d.ts
 .git/**
 out/test/**
 *.vsix

@@ -56,8 +56,10 @@ export function getSettings(): {
     return get<string>(`thinking.${key}`, fallback);
   };
 
+  const rawTemp = get("temperature", 0.2);
   return {
-    temperature: get("temperature", 0.2),
+    // Clamp to [0, 2] — providers reject values outside this range with 400.
+    temperature: Math.min(2, Math.max(0, typeof rawTemp === "number" && Number.isFinite(rawTemp) ? rawTemp : 0.2)),
     maxTokens: get("maxTokens", 0),
     debugReasoning: get("debugReasoning", false),
     requestTimeoutMs: get("requestTimeoutSeconds", 600) * 1000,
@@ -87,6 +89,16 @@ export function buildThinkingPayload(
   if (!family) return undefined;
 
   const value = thinking[family];
+
+  // MiMo always needs repetition_penalty to prevent infinite loops (MiMo/issues/914),
+  // even when reasoning is off.
+  if (family === "mimo") {
+    const base: Record<string, unknown> = { repetition_penalty: 1.2 };
+    if (!value || value === "off") return base;
+    const effort = value === "on" ? "high" : value;
+    return { ...base, reasoning_effort: effort };
+  }
+
   if (!value || value === "off") return undefined;
 
   switch (family) {
@@ -100,10 +112,6 @@ export function buildThinkingPayload(
       return { thinking: { type: value === "on" ? "enabled" : "disabled" } };
     case "minimax":
       return { thinking: { type: value === "on" ? "enabled" : "disabled" } };
-    case "mimo": {
-      const effort = value === "on" ? "high" : value;
-      return { reasoning_effort: effort };
-    }
     case "qwen": {
       if (value === "auto") return undefined;
       const payload: Record<string, unknown> = { enable_thinking: value === "on" };

@@ -581,6 +581,7 @@ async function streamChatResponse(
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "Accept": "application/json",
     "Authorization": `Bearer ${options.apiKey}`,
     ...options.requestHeaders,
   };
@@ -612,6 +613,11 @@ async function streamChatResponse(
           `[retry] network error attempt=${attempt + 1}/${MAX_HTTP_RETRIES + 1} delay=${delay}ms model=${options.modelId}`,
         );
         await new Promise((r) => setTimeout(r, delay));
+        // Fail cleanly as cancelled rather than surfacing a stale error.
+        if (options.token.isCancellationRequested) {
+          controller.abort();
+          throw new DOMException("Aborted", "AbortError");
+        }
         continue;
       }
 
@@ -626,6 +632,11 @@ async function streamChatResponse(
             `[retry] HTTP ${response.status} attempt=${attempt + 1}/${MAX_HTTP_RETRIES + 1} delay=${delay}ms model=${options.modelId}`,
           );
           await new Promise((r) => setTimeout(r, delay));
+          // Fail cleanly as cancelled rather than surfacing a stale gateway error.
+          if (options.token.isCancellationRequested) {
+            controller.abort();
+            throw new DOMException("Aborted", "AbortError");
+          }
           continue;
         }
       }
