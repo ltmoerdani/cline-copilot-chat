@@ -40,6 +40,13 @@ export interface StreamRequestOptions {
   streamIdleTimeoutMs: number;
   stripThinkTags?: "never" | "auto" | "always";
   /**
+   * When true, forces think-tag stripping regardless of the `stripThinkTags`
+   * mode. Set by the provider when the request has tools (agent mode) to
+   * prevent `<think>` tags from leaking into the chat UI as unreadable
+   * code blocks. Ported from opencode-copilot-chat.
+   */
+  forceStripThinkTags?: boolean;
+  /**
    * When true, text content is scanned for XML-style tool invocations
    * (e.g. `<read_file>…</read_file>`) and converted to
    * `LanguageModelToolCallPart`. Used for open-weight models that don't
@@ -73,27 +80,152 @@ export interface TransportRequestSummary {
   errorMessage?: string;
 }
 
-function createThinkTagFilter(
-  stripMode: "never" | "auto" | "always" | undefined,
-  modelId: string,
-): (text: string) => { cleaned: string; extractedReasoning: string } {
-  const shouldStrip =
-    stripMode === "always" ||
-    (stripMode === "auto" && /^minimax-/i.test(modelId));
+// ---------------------------------------------------------------------------
+// ThinkTagFilter — streaming stripper for inline `<think>...</think>` tags
+//
+// Some models (notably MiniMax M-series, DeepSeek V4) inline their
+// chain-of-thought directly inside the `content` text field wrapped in
+// `<think>` / `</think>` tags rather than using a dedicated
+// `reasoning_content` field. When this raw text is emitted to the VS Code
+// chat UI the reasoning "leaks" into the visible response, making it
+// unreadable.
+//
+// The filter processes text **as it arrives** (potentially split across many
+// SSE chunks) and separates it into:
+//   • `visibleText` — content outside think tags (emitted to chat)
+//   • `thinkingText` — content inside think tags (accumulated as reasoning)
+//
+// Edge cases handled:
+//   - `<think>` or `</think>` split across chunk boundaries
+//   - Unclosed `<think>` at end of stream (flushed as thinking on `finish()`)
+//   - Leading whitespace immediately after opening `<think>` is trimmed
+//
+// Ported from opencode-copilot-chat `src/transports/thinkTags.ts`.
+// ---------------------------------------------------------------------------
 
-  if (!shouldStrip) {
-    return (text) => ({ cleaned: text, extractedReasoning: "" });
+const OPEN_THINK_TAG = "<think>";
+const CLOSE_THINK_TAG = "</think>";
+
+export function shouldStripThinkTags(mode: "never" | "auto" | "always" | undefined, modelId: string): boolean {
+  if (mode === "always") {
+    return true;
+  }
+  if (mode === "never" || mode === undefined) {
+    return false;
+  }
+  // "auto" — strip only for models known to inline thinking tags
+  return /^minimax-/i.test(modelId);
+}
+
+export function createThinkTagFilter(
+  mode: "never" | "auto" | "always" | undefined,
+  modelId: string,
+  forceOverride?: boolean,
+): ThinkTagFilter | undefined {
+  const effective = forceOverride ? "always" : mode;
+  return shouldStripThinkTags(effective, modelId) ? new ThinkTagFilter() : undefined;
+}
+
+export class ThinkTagFilter {
+  /** Partial text carried over from the previous chunk for boundary matching. */
+  private carry = "";
+  /** Whether we are currently inside a `<think>` block. */
+  private insideThink = false;
+
+  /**
+   * Process an incoming text chunk.
+   * Returns `{ visible, thinking }` where `visible` is safe to emit to the
+   * chat and `thinking` should be accumulated as reasoning content.
+   */
+  process(chunk: string): { visible: string; thinking: string } {
+    if (!chunk) {
+      return { visible: "", thinking: "" };
+    }
+
+    // Prepend carry from the previous chunk so boundary tags can be detected
+    // even when they are split across chunks.
+    const buffer = this.carry + chunk;
+    this.carry = "";
+
+    let visible = "";
+    let thinking = "";
+    let pos = 0;
+    const maxScan = Math.max(OPEN_THINK_TAG.length, CLOSE_THINK_TAG.length);
+
+    while (pos < buffer.length) {
+      if (this.insideThink) {
+        // Look for closing </think>
+        const closeIdx = buffer.indexOf(CLOSE_THINK_TAG, pos);
+        if (closeIdx === -1) {
+          // No closing tag found — consume the rest, but keep a tail for
+          // boundary matching in the next chunk.
+          const safeEnd = buffer.length - maxScan;
+          if (safeEnd > pos) {
+            thinking += buffer.slice(pos, safeEnd);
+            this.carry = buffer.slice(safeEnd);
+          } else {
+            // Entire remaining buffer is shorter than max scan — carry it all
+            this.carry = buffer.slice(pos);
+          }
+          break;
+        }
+        // Found closing tag
+        thinking += buffer.slice(pos, closeIdx);
+        pos = closeIdx + CLOSE_THINK_TAG.length;
+        this.insideThink = false;
+        // Skip a single leading whitespace after </think> for cleaner output
+        if (pos < buffer.length && (buffer[pos] === "\n" || buffer[pos] === "\r")) {
+          pos += 1;
+          if (pos < buffer.length && buffer[pos] === "\n") {
+            pos += 1;
+          }
+        }
+      } else {
+        // Look for opening <think>
+        const openIdx = buffer.indexOf(OPEN_THINK_TAG, pos);
+        if (openIdx === -1) {
+          // No opening tag — emit visible text but keep a tail for boundary
+          const safeEnd = buffer.length - maxScan;
+          if (safeEnd > pos) {
+            visible += buffer.slice(pos, safeEnd);
+            this.carry = buffer.slice(safeEnd);
+          } else {
+            this.carry = buffer.slice(pos);
+          }
+          break;
+        }
+        // Found opening tag
+        visible += buffer.slice(pos, openIdx);
+        pos = openIdx + OPEN_THINK_TAG.length;
+        this.insideThink = true;
+        // Skip a single leading whitespace after <think>
+        if (pos < buffer.length && (buffer[pos] === "\n" || buffer[pos] === "\r")) {
+          pos += 1;
+          if (pos < buffer.length && buffer[pos] === "\n") {
+            pos += 1;
+          }
+        }
+      }
+    }
+
+    return { visible, thinking };
   }
 
-  return (text: string) => {
-    const tagRegex = /<think>([\s\S]*?)<\/think>/gi;
-    let extractedReasoning = "";
-    const cleaned = text.replace(tagRegex, (_match, reasoning: string) => {
-      extractedReasoning += reasoning;
-      return "";
-    });
-    return { cleaned, extractedReasoning };
-  };
+  /**
+   * Call at end of stream to flush any remaining carry.
+   * If we were inside an unclosed `<think>`, that content is treated as
+   * thinking. Otherwise the remaining carry is visible text.
+   */
+  finish(): { visible: string; thinking: string } {
+    const remaining = this.carry;
+    this.carry = "";
+    if (this.insideThink) {
+      // Unclosed think tag at end of stream — treat as thinking
+      this.insideThink = false;
+      return { visible: "", thinking: remaining };
+    }
+    return { visible: remaining, thinking: "" };
+  }
 }
 
 function createReasoningDebugger(
@@ -114,7 +246,7 @@ function createReasoningDebugger(
 export async function streamChatCompletions(
   options: StreamRequestOptions,
 ): Promise<void> {
-  const thinkFilter = createThinkTagFilter(options.stripThinkTags, options.modelId);
+  const thinkFilter = createThinkTagFilter(options.stripThinkTags, options.modelId, options.forceStripThinkTags);
   const debugReasoning = createReasoningDebugger(options.output, options.debugReasoning);
   let emittedText = 0;
   let emittedTools = 0;
@@ -291,18 +423,18 @@ export async function streamChatCompletions(
         // Text content
         const content = delta.content;
         if (typeof content === "string" && content.length > 0) {
-          const { cleaned, extractedReasoning } = thinkFilter(content);
-          if (extractedReasoning) {
-            reasoningChars += extractedReasoning.length;
-            debugReasoning(extractedReasoning);
+          const { visible, thinking } = thinkFilter ? thinkFilter.process(content) : { visible: content, thinking: "" };
+          if (thinking) {
+            reasoningChars += thinking.length;
+            debugReasoning(thinking);
           }
-          if (cleaned) {
-            emittedText += cleaned.length;
+          if (visible) {
+            emittedText += visible.length;
             if (xmlParser) {
-              const fed = xmlParser.feed(cleaned);
+              const fed = xmlParser.feed(visible);
               for (const part of fed.parts) parts.push(part);
             } else {
-              parts.push(new vscode.LanguageModelTextPart(cleaned));
+              parts.push(new vscode.LanguageModelTextPart(visible));
             }
           }
         }
@@ -355,14 +487,18 @@ export async function streamChatCompletions(
 
       const content = message.content;
       if (typeof content === "string" && content.length > 0) {
-        const { cleaned } = thinkFilter(content);
-        if (cleaned) {
-          emittedText += cleaned.length;
+        const { visible, thinking } = thinkFilter ? thinkFilter.process(content) : { visible: content, thinking: "" };
+        if (thinking) {
+          reasoningChars += thinking.length;
+          debugReasoning(thinking);
+        }
+        if (visible) {
+          emittedText += visible.length;
           if (xmlParser) {
-            const fed = xmlParser.feed(cleaned);
+            const fed = xmlParser.feed(visible);
             for (const part of fed.parts) parts.push(part);
           } else {
-            parts.push(new vscode.LanguageModelTextPart(cleaned));
+            parts.push(new vscode.LanguageModelTextPart(visible));
           }
         }
       }
@@ -380,6 +516,21 @@ export async function streamChatCompletions(
     const flushed = xmlParser.flush();
     for (const part of flushed.parts) {
       options.progress.report(part);
+    }
+  }
+
+  // Flush any remaining carry from the think-tag filter. If the stream ended
+  // inside an unclosed `<think>`, that content is treated as thinking (not
+  // emitted to chat). Otherwise the remaining carry is visible text.
+  if (thinkFilter) {
+    const { visible, thinking } = thinkFilter.finish();
+    if (thinking) {
+      reasoningChars += thinking.length;
+      debugReasoning(thinking);
+    }
+    if (visible) {
+      emittedText += visible.length;
+      options.progress.report(new vscode.LanguageModelTextPart(visible));
     }
   }
 

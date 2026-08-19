@@ -412,6 +412,10 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       requestTimeoutMs: settings.requestTimeoutMs,
       streamIdleTimeoutMs: settings.streamIdleTimeoutMs,
       stripThinkTags: settings.stripThinkTags,
+      // Force think-tag stripping when tools are present (agent mode) to
+      // prevent `<think>` tags from leaking into the chat UI as unreadable
+      // code blocks. Ported from opencode-copilot-chat OpenCodeProvider.
+      forceStripThinkTags: toolNames.size > 0 || undefined,
       enableXmlToolParsing: toolNames.size > 0,
       toolNames,
     };

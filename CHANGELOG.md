@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.8] — 2026-08-19
+
+### Fixed
+
+- **Think tags leaking into chat for DeepSeek V4 Flash (and other reasoning models) in agent mode.** When using reasoning models with tools enabled (Copilot Chat agent mode), `<think>...</think>` tags and their contents leaked into the visible chat output as unreadable raw text instead of being stripped. Fixed with two changes ported from `opencode-copilot-chat`: (1) `src/streaming.ts` now uses a stateful `ThinkTagFilter` class (ported from `opencode-copilot-chat/src/transports/thinkTags.ts`) that handles `<think>` tags split across SSE chunks, unclosed tags at end of stream, and boundary matching — replacing the previous regex-based filter that could miss split tags; (2) `src/extension.ts` now sets `forceStripThinkTags: true` when tools are present (agent mode), forcing think-tag stripping regardless of the `stripThinkTags` mode — matching `opencode-copilot-chat`'s `OpenCodeProvider` behavior. `[Extension]`
+
+---
+
 ## [0.1.7] — 2026-08-19
 
 ### Fixed
