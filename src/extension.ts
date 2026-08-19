@@ -19,6 +19,7 @@ import {
 import { resolveModelMetadata, isProductSurfacesOnlyModel } from "./metadata";
 import { buildThinkingPayload, buildModelConfigurationSchema, getSettings } from "./thinking";
 import { streamChatCompletions } from "./streaming";
+import { estimateTokenCount, estimateChatMessageTokenCount } from "./tokens";
 import { ClineCopilotChatRequestError } from "./errors";
 import {
   providerEnabledSetting,
@@ -368,6 +369,10 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       model: rawModelId,
       messages: apiMessages,
       stream: true,
+      // Issue #4: ask the server to include a `usage` block in the SSE stream.
+      // Without this many OpenAI-compatible backends omit usage entirely, and
+      // the Context Window widget has nothing to consume.
+      stream_options: { include_usage: true },
     };
 
     this.log(`[${this.config.displayName}] Request: model=${rawModelId} msgs=${apiMessages.length} tools=${toolNames.size}`);
@@ -393,26 +398,47 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       Object.assign(body, thinkingPayload);
     }
 
+    const streamOptions = {
+      url: `${BASE_URL}/chat/completions`,
+      providerDisplayName: this.config.displayName,
+      apiKey,
+      modelId: rawModelId,
+      body,
+      requestHeaders: {},
+      progress,
+      token,
+      output: this.getOutputChannel(),
+      debugReasoning: settings.debugReasoning,
+      requestTimeoutMs: settings.requestTimeoutMs,
+      streamIdleTimeoutMs: settings.streamIdleTimeoutMs,
+      stripThinkTags: settings.stripThinkTags,
+      enableXmlToolParsing: toolNames.size > 0,
+      toolNames,
+    };
+
     try {
-      await streamChatCompletions({
-        url: `${BASE_URL}/chat/completions`,
-        providerDisplayName: this.config.displayName,
-        apiKey,
-        modelId: rawModelId,
-        body,
-        requestHeaders: {},
-        progress,
-        token,
-        output: this.getOutputChannel(),
-        debugReasoning: settings.debugReasoning,
-        requestTimeoutMs: settings.requestTimeoutMs,
-        streamIdleTimeoutMs: settings.streamIdleTimeoutMs,
-        stripThinkTags: settings.stripThinkTags,
-        enableXmlToolParsing: toolNames.size > 0,
-        toolNames,
-      });
+      await streamChatCompletions(streamOptions);
       this.log(`[${this.config.displayName}] Response complete: model=${rawModelId}`);
     } catch (error) {
+      // Issue #4 safety net: stream_options.include_usage is OpenAI-standard
+      // but undocumented on docs.cline.bot. If the gateway strictly rejects it
+      // (HTTP 400 naming stream_options), retry ONCE without the field — the
+      // final SSE chunk still carries usage per docs.cline.bot, so the
+      // Context Window keeps working; only guaranteed-usage backends lose it.
+      // Safe to retry: a 400 fails before any SSE part was emitted.
+      if (
+        error instanceof ClineCopilotChatRequestError &&
+        error.status === 400 &&
+        error.message.toLowerCase().includes("stream_options")
+      ) {
+        this.log(
+          `[${this.config.displayName}] stream_options rejected (400) — retrying without it (Issue #4 fallback).`,
+        );
+        delete body.stream_options;
+        await streamChatCompletions(streamOptions);
+        this.log(`[${this.config.displayName}] Response complete (no stream_options): model=${rawModelId}`);
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       this.log(`[${this.config.displayName}] ERROR model=${rawModelId}: ${message}`);
       // Copilot Chat surfaces the thrown error's `message` to the user. For
@@ -431,8 +457,12 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
     text: string | vscode.LanguageModelChatRequestMessage,
     _token: vscode.CancellationToken,
   ): Thenable<number> {
-    const content = typeof text === "string" ? text : extractTextContent(text);
-    return Promise.resolve(Math.ceil(content.length / 4));
+    // Issue #4: full prompt-token estimation (role/name overhead, tool calls,
+    // tool results, images, CJK) — ported from opencode-copilot-chat tokens.
+    // The old `length / 4` text flatten ignored all structured parts.
+    return Promise.resolve(
+      typeof text === "string" ? estimateTokenCount(text) : estimateChatMessageTokenCount(text),
+    );
   }
 
   // ── Commands ──────────────────────────────────────────────────────────
@@ -550,14 +580,6 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
-}
-
-function extractTextContent(msg: vscode.LanguageModelChatRequestMessage): string {
-  if (typeof msg.content === "string") return msg.content;
-  return msg.content
-    .filter((p): p is vscode.LanguageModelTextPart => p instanceof vscode.LanguageModelTextPart)
-    .map((p) => p.value)
-    .join("");
 }
 
 function convertMessagesToApi(
