@@ -100,7 +100,10 @@ const CLINE_MODEL_DEFS: ModelDef[] = [
   // MiMo — 402 MODEL VALID
   { id: "mimo/mimo-v2.5",                 name: "MiMo V2.5",             family: "MiMo" },
   { id: "mimo/mimo-v2.5-pro",             name: "MiMo V2.5 Pro",         family: "MiMo" },
-  // MiniMax — 402 MODEL VALID
+  // MiniMax — m2.5 verified API-accessible via live probe (402 credits check,
+  // not 403 product-surfaces). Docs label it "free experimentation" but via
+  // API key it is billed through Cline credits like other paid models.
+  { id: "minimax/minimax-m2.5",             name: "MiniMax M2.5",          family: "MiniMax" },
   { id: "minimax/minimax-m3",             name: "MiniMax M3",            family: "MiniMax" },
   // Qwen — 402 MODEL VALID
   { id: "qwen/qwen3.8-max",              name: "Qwen3.8 Max",           family: "Qwen" },

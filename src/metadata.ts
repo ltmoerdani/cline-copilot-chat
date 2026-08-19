@@ -65,6 +65,7 @@ export const CLINE_MODELS: Record<string, ModelLimits> = {
   "mimo/mimo-v2.5":                 { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   "mimo/mimo-v2.5-pro":             { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   // MiniMax
+  "minimax/minimax-m2.5":             { contextWindow: 204_800,    maxOutputTokens: 131_072 },
   "minimax/minimax-m3":             { contextWindow: 192_000,   maxOutputTokens: 131_072 },
   // Qwen
   "qwen/qwen3.8-max":              { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
@@ -144,6 +145,7 @@ const REASONING_MODELS = new Set([
   "moonshot/kimi-k2.6",
   "mimo/mimo-v2.5",
   "mimo/mimo-v2.5-pro",
+  "minimax/minimax-m2.5",
   "qwen/qwen3.8-max",
   "qwen/qwen3.7-max",
   "qwen/qwen3.7-plus",
