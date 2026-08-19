@@ -16,9 +16,10 @@ import {
   BASE_URL,
   type AllProviderVendor,
 } from "./providerTypes";
-import { resolveModelMetadata } from "./metadata";
+import { resolveModelMetadata, isProductSurfacesOnlyModel } from "./metadata";
 import { buildThinkingPayload, buildModelConfigurationSchema, getSettings } from "./thinking";
 import { streamChatCompletions } from "./streaming";
+import { ClineCopilotChatRequestError } from "./errors";
 import {
   providerEnabledSetting,
   toggleProviderEnabled,
@@ -137,7 +138,9 @@ const PROVIDER_CONFIGS: Record<AllProviderVendor, ProviderConfig> = {
     displayName: "Cline",
     models: CLINE_MODEL_DEFS,
     labelPrefix: "Cline",
-    testModelId: "deepseek/deepseek-v4-flash",
+    // Issue #3: deepseek/deepseek-v4-flash now returns 403 "product surfaces"
+    // on the public API-key path — use deepseek-chat (still API-served) for tests.
+    testModelId: "deepseek/deepseek-chat",
   },
   [CLINE_PASS_VENDOR]: {
     vendor: CLINE_PASS_VENDOR,
@@ -234,31 +237,42 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       return [];
     }
 
-    const models = this.config.models.map((model) => {
-      const metadata = resolveModelMetadata(model.id);
-      const effectiveId = `${this.config.vendor}:${model.id}`;
-      if (apiKey) {
-        this.apiKeysByModelId.set(model.id, apiKey);
-        this.apiKeysByModelId.set(effectiveId, apiKey);
-      }
+    // Issue #3: hide models confirmed to return 403 "product surfaces" on the
+    // public API-key path. Bundled limits metadata stays intact (metadata.ts).
+    const blocked = this.config.models.filter((m) => isProductSurfacesOnlyModel(m.id));
+    if (blocked.length > 0) {
+      this.log(
+        `[${this.config.displayName}] hiding ${blocked.length} product-surfaces-only model(s): ` +
+          blocked.map((m) => m.id).join(", "),
+      );
+    }
+    const models = this.config.models
+      .filter((model) => !isProductSurfacesOnlyModel(model.id))
+      .map((model) => {
+        const metadata = resolveModelMetadata(model.id);
+        const effectiveId = `${this.config.vendor}:${model.id}`;
+        if (apiKey) {
+          this.apiKeysByModelId.set(model.id, apiKey);
+          this.apiKeysByModelId.set(effectiveId, apiKey);
+        }
 
-      const configurationSchema = buildModelConfigurationSchema(model.id);
+        const configurationSchema = buildModelConfigurationSchema(model.id);
 
-      return {
-        id: effectiveId,
-        rawModelId: model.id,
-        name: `${this.config.labelPrefix} / ${model.name}`,
-        family: model.family,
-        version: "1.0.0",
-        maxInputTokens: metadata.contextWindow,
-        maxOutputTokens: metadata.maxOutputTokens,
-        capabilities: {
-          imageInput: metadata.supportsVision,
-          toolCalling: true,
-        },
-        configurationSchema,
-      };
-    });
+        return {
+          id: effectiveId,
+          rawModelId: model.id,
+          name: `${this.config.labelPrefix} / ${model.name}`,
+          family: model.family,
+          version: "1.0.0",
+          maxInputTokens: metadata.contextWindow,
+          maxOutputTokens: metadata.maxOutputTokens,
+          capabilities: {
+            imageInput: metadata.supportsVision,
+            toolCalling: true,
+          },
+          configurationSchema,
+        };
+      });
 
     this.log(
       `[${this.config.displayName}] advertising ${models.length} model(s) to VS Code ` +
@@ -398,6 +412,13 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.log(`[${this.config.displayName}] ERROR model=${rawModelId}: ${message}`);
+      // Copilot Chat surfaces the thrown error's `message` to the user. For
+      // request errors we own (e.g. 403 product-surfaces), swap the raw HTTP
+      // detail for the actionable userMessage so users see the cause and the
+      // next step (Issue #3). Raw detail stays in the output channel above.
+      if (error instanceof ClineCopilotChatRequestError) {
+        throw new Error(error.userMessage);
+      }
       throw error;
     }
   }
