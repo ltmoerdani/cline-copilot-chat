@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.1.7] — 2026-08-19
+
+### Fixed
+
+- **Context Window & Session Info never updated (Issue #4).** The Copilot Chat Context Window widget showed the model capacity but stayed at `0%`, and Session Info had no token data, because the extension never reported usage to VS Code — the data was arriving and even logged to the output channel, but only as diagnostics text. Fixed with three changes ported from `opencode-copilot-chat`: (1) `src/streaming.ts` now captures the `usage` block from **every** SSE chunk (including the usage-only final chunk with `choices: []`, which the previous code dropped before reaching its usage logging) and emits it at end of stream as a `LanguageModelDataPart` with MIME `"usage"` — the native mechanism Copilot Chat's Context Window consumes, used by Copilot's own BYOK providers; `cached_tokens` is read from both the OpenAI-style `prompt_tokens_details.cached_tokens` (matches docs.cline.bot) and a top-level `cached_tokens`; (2) requests now send `stream_options: { include_usage: true }` to guarantee usage in streams, with a safety fallback that retries once without the field if the gateway rejects it with a 400 naming `stream_options` (it is OpenAI-standard but undocumented on docs.cline.bot — and usage arrives in the final chunk regardless per the official docs); (3) `provideTokenCount` now uses a complete estimator (new `src/tokens.ts`: message role/name overhead, tool call + tool result overhead, image parts, +10% code buffer, CJK handling) instead of flattening text to `length / 4`; internal `"usage"` DataParts that round-trip in chat history count as 0 tokens. `[Extension]`
+
+---
+
 ## [0.1.6] — 2026-08-17
 
 ### Added

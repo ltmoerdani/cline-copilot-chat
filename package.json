@@ -1,240 +1,274 @@
 {
-  "name": "cline-copilot-chat",
-  "displayName": "Cline Copilot Chat — BYOK 33+ AI Models",
-  "description": "Use 33+ frontier AI models (DeepSeek V4, Kimi K2.7, GLM 5.2, GPT-5, Gemini 2.5, Grok 4, Qwen3.7, MiMo V2.5, MiniMax M3, Claude, free models) in GitHub Copilot Chat. Bring Your Own Key — Cline pay-per-use or ClinePass $9.99/mo.",
-  "version": "0.1.6",
-  "publisher": "ltmoerdani",
-  "license": "MIT",
-  "icon": "media/logo-cline-copilot-chat.png",
-  "galleryBanner": {
-    "color": "#0d1117",
-    "theme": "dark"
-  },
-  "keywords": [
-    "cline",
-    "clinepass",
-    "copilot",
-    "copilot-chat",
-    "byok",
-    "bring-your-own-key",
-    "ai",
-    "language-model",
-    "language-models",
-    "openai",
-    "anthropic",
-    "claude",
-    "gpt",
-    "gpt-5",
-    "gemini",
-    "grok",
-    "deepseek",
-    "qwen",
-    "kimi",
-    "glm",
-    "minimax",
-    "mimo",
-    "mistral",
-    "llama",
-    "sonar",
-    "perplexity",
-    "llm",
-    "chat",
-    "agent",
-    "reasoning",
-    "thinking",
-    "free-models",
-    "open-weight",
-    "coding",
-    "subscription"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/ltmoerdani/cline-copilot-chat.git"
-  },
-  "engines": {
-    "vscode": "^1.120.0"
-  },
-  "categories": [
-    "AI",
-    "Machine Learning",
-    "Education",
-    "Other"
-  ],
-  "tags": [
-    "language-models"
-  ],
-  "activationEvents": [
-    "onStartupFinished",
-    "onLanguageModelChatProvider:cline",
-    "onLanguageModelChatProvider:cline-pass"
-  ],
-  "main": "./out/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "clineCopilotChat.manage",
-        "title": "Cline Copilot Chat: Manage Provider"
-      },
-      {
-        "command": "clineCopilotChat.setApiKey",
-        "title": "Cline Copilot Chat: Set API Key"
-      },
-      {
-        "command": "clineCopilotChat.diagnostics",
-        "title": "Cline Copilot Chat: Diagnostics"
-      },
-      {
-        "command": "clineCopilotChat.setThinkingEffort",
-        "title": "Cline Copilot Chat: Set Thinking Effort..."
-      },
-      {
-        "command": "clineCopilotChat.toggleProvider",
-        "title": "Cline Copilot Chat: Remove/Re-add Cline in Language Models"
-      },
-      {
-        "command": "clineCopilotChat.toggleProviderPass",
-        "title": "Cline Copilot Chat: Remove/Re-add ClinePass in Language Models"
-      }
-    ],
-    "configuration": {
-      "title": "Cline Copilot Chat",
-      "properties": {
-        "clineCopilotChat.enabled": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "Register the Cline provider. Set to `false` to remove Cline from the Language Models list and all model pickers (like deleting the provider in GitHub Copilot's Manage Language Models). Models you previously configured stay in your language-models config so they come back if you re-enable. Requires a window reload to take effect."
-        },
-        "clineCopilotChat.clinePass.enabled": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "Register the ClinePass provider. Set to `false` to remove ClinePass from the Language Models list and all model pickers (like deleting the provider in GitHub Copilot's Manage Language Models). Models you previously configured stay in your language-models config so they come back if you re-enable. Requires a window reload to take effect."
-        },
-        "clineCopilotChat.temperature": {
-          "type": "number",
-          "default": 0.2,
-          "minimum": 0,
-          "maximum": 2,
-          "description": "Sampling temperature for Cline Copilot Chat completions."
-        },
-        "clineCopilotChat.maxTokens": {
-          "type": "number",
-          "default": 0,
-          "minimum": 0,
-          "description": "Optional max output token override. Use 0 for model default."
-        },
-        "clineCopilotChat.debugReasoning": {
-          "type": "boolean",
-          "default": false,
-          "description": "Write provider reasoning_content to the Cline Copilot Chat output channel."
-        },
-        "clineCopilotChat.requestTimeoutSeconds": {
-          "type": "number",
-          "default": 600,
-          "minimum": 1,
-          "description": "Total request timeout in seconds."
-        },
-        "clineCopilotChat.streamIdleTimeoutSeconds": {
-          "type": "number",
-          "default": 120,
-          "minimum": 1,
-          "description": "Streaming idle timeout in seconds."
-        },
-        "clineCopilotChat.stripThinkTags": {
-          "type": "string",
-          "enum": ["never", "auto", "always"],
-          "default": "auto",
-          "markdownDescription": "How to handle think tags in model output."
-        },
-        "clineCopilotChat.thinking.deepseek": {
-          "type": "string",
-          "enum": ["off", "low", "medium", "high", "max"],
-          "default": "off",
-          "markdownDescription": "Thinking mode for DeepSeek models."
-        },
-        "clineCopilotChat.thinking.glm": {
-          "type": "string",
-          "enum": ["on", "off"],
-          "default": "off",
-          "markdownDescription": "Thinking mode for GLM models."
-        },
-        "clineCopilotChat.thinking.kimi": {
-          "type": "string",
-          "enum": ["on", "off"],
-          "default": "off",
-          "markdownDescription": "Thinking mode for Kimi models."
-        },
-        "clineCopilotChat.thinking.minimax": {
-          "type": "string",
-          "enum": ["off", "on"],
-          "default": "off",
-          "markdownDescription": "Thinking mode for MiniMax models."
-        },
-        "clineCopilotChat.thinking.mimo": {
-          "type": "string",
-          "enum": ["off", "low", "medium", "high"],
-          "default": "off",
-          "markdownDescription": "Thinking mode for MiMo models."
-        },
-        "clineCopilotChat.thinking.qwen": {
-          "type": "string",
-          "enum": ["auto", "on", "off"],
-          "default": "off",
-          "markdownDescription": "Thinking mode for Qwen models."
-        },
-        "clineCopilotChat.thinking.qwenBudget": {
-          "type": "string",
-          "enum": ["auto", "4096", "16384", "32768", "81920"],
-          "default": "auto",
-          "markdownDescription": "Optional thinking budget for Qwen models."
-        }
-      }
-    },
-    "languageModelChatProviders": [
-      {
-        "vendor": "cline",
-        "displayName": "Cline",
-        "when": "config.clineCopilotChat.enabled",
-        "configuration": {
-          "type": "object",
-          "properties": {
-            "apiKey": {
-              "type": "string",
-              "title": "Cline API Key",
-              "description": "Your Cline API key (from app.cline.bot → Settings → API Keys). Unlocks 100+ models — pay per use.",
-              "secret": true
-            }
-          }
-        }
-      },
-      {
-        "vendor": "cline-pass",
-        "displayName": "ClinePass",
-        "when": "config.clineCopilotChat.clinePass.enabled",
-        "configuration": {
-          "type": "object",
-          "properties": {
-            "apiKey": {
-              "type": "string",
-              "title": "ClinePass API Key",
-              "description": "Your Cline API key (same as Cline). $9.99/mo subscription for 10 curated open-weight models with 2-5× rate limits.",
-              "secret": true
-            }
-          }
-        }
-      }
-    ]
-  },
-  "scripts": {
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "prepackage": "npm run compile",
-    "package": "vsce package",
-    "vscode:prepublish": "npm run compile"
-  },
-  "devDependencies": {
-    "@types/node": "^25.9.3",
-    "@types/vscode": "^1.120.0",
-    "@vscode/vsce": "^3.6.0",
-    "typescript": "^6.0.3"
-  }
+	"name": "cline-copilot-chat",
+	"displayName": "Cline Copilot Chat — BYOK 33+ AI Models",
+	"description": "Use 33+ frontier AI models (DeepSeek V4, Kimi K2.7, GLM 5.2, GPT-5, Gemini 2.5, Grok 4, Qwen3.7, MiMo V2.5, MiniMax M3, Claude, free models) in GitHub Copilot Chat. Bring Your Own Key — Cline pay-per-use or ClinePass $9.99/mo.",
+	"version": "0.1.7",
+	"publisher": "ltmoerdani",
+	"license": "MIT",
+	"icon": "media/logo-cline-copilot-chat.png",
+	"galleryBanner": {
+		"color": "#0d1117",
+		"theme": "dark"
+	},
+	"keywords": [
+		"cline",
+		"clinepass",
+		"copilot",
+		"copilot-chat",
+		"byok",
+		"bring-your-own-key",
+		"ai",
+		"language-model",
+		"language-models",
+		"openai",
+		"anthropic",
+		"claude",
+		"gpt",
+		"gpt-5",
+		"gemini",
+		"grok",
+		"deepseek",
+		"qwen",
+		"kimi",
+		"glm",
+		"minimax",
+		"mimo",
+		"mistral",
+		"llama",
+		"sonar",
+		"perplexity",
+		"llm",
+		"chat",
+		"agent",
+		"reasoning",
+		"thinking",
+		"free-models",
+		"open-weight",
+		"coding",
+		"subscription"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ltmoerdani/cline-copilot-chat.git"
+	},
+	"engines": {
+		"vscode": "^1.120.0"
+	},
+	"categories": [
+		"AI",
+		"Machine Learning",
+		"Education",
+		"Other"
+	],
+	"tags": [
+		"language-models"
+	],
+	"activationEvents": [
+		"onStartupFinished",
+		"onLanguageModelChatProvider:cline",
+		"onLanguageModelChatProvider:cline-pass"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "clineCopilotChat.manage",
+				"title": "Cline Copilot Chat: Manage Provider"
+			},
+			{
+				"command": "clineCopilotChat.setApiKey",
+				"title": "Cline Copilot Chat: Set API Key"
+			},
+			{
+				"command": "clineCopilotChat.diagnostics",
+				"title": "Cline Copilot Chat: Diagnostics"
+			},
+			{
+				"command": "clineCopilotChat.setThinkingEffort",
+				"title": "Cline Copilot Chat: Set Thinking Effort..."
+			},
+			{
+				"command": "clineCopilotChat.toggleProvider",
+				"title": "Cline Copilot Chat: Remove/Re-add Cline in Language Models"
+			},
+			{
+				"command": "clineCopilotChat.toggleProviderPass",
+				"title": "Cline Copilot Chat: Remove/Re-add ClinePass in Language Models"
+			}
+		],
+		"configuration": {
+			"title": "Cline Copilot Chat",
+			"properties": {
+				"clineCopilotChat.enabled": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Register the Cline provider. Set to `false` to remove Cline from the Language Models list and all model pickers (like deleting the provider in GitHub Copilot's Manage Language Models). Models you previously configured stay in your language-models config so they come back if you re-enable. Requires a window reload to take effect."
+				},
+				"clineCopilotChat.clinePass.enabled": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Register the ClinePass provider. Set to `false` to remove ClinePass from the Language Models list and all model pickers (like deleting the provider in GitHub Copilot's Manage Language Models). Models you previously configured stay in your language-models config so they come back if you re-enable. Requires a window reload to take effect."
+				},
+				"clineCopilotChat.temperature": {
+					"type": "number",
+					"default": 0.2,
+					"minimum": 0,
+					"maximum": 2,
+					"description": "Sampling temperature for Cline Copilot Chat completions."
+				},
+				"clineCopilotChat.maxTokens": {
+					"type": "number",
+					"default": 0,
+					"minimum": 0,
+					"description": "Optional max output token override. Use 0 for model default."
+				},
+				"clineCopilotChat.debugReasoning": {
+					"type": "boolean",
+					"default": false,
+					"description": "Write provider reasoning_content to the Cline Copilot Chat output channel."
+				},
+				"clineCopilotChat.requestTimeoutSeconds": {
+					"type": "number",
+					"default": 600,
+					"minimum": 1,
+					"description": "Total request timeout in seconds."
+				},
+				"clineCopilotChat.streamIdleTimeoutSeconds": {
+					"type": "number",
+					"default": 120,
+					"minimum": 1,
+					"description": "Streaming idle timeout in seconds."
+				},
+				"clineCopilotChat.stripThinkTags": {
+					"type": "string",
+					"enum": [
+						"never",
+						"auto",
+						"always"
+					],
+					"default": "auto",
+					"markdownDescription": "How to handle think tags in model output."
+				},
+				"clineCopilotChat.thinking.deepseek": {
+					"type": "string",
+					"enum": [
+						"off",
+						"low",
+						"medium",
+						"high",
+						"max"
+					],
+					"default": "off",
+					"markdownDescription": "Thinking mode for DeepSeek models."
+				},
+				"clineCopilotChat.thinking.glm": {
+					"type": "string",
+					"enum": [
+						"on",
+						"off"
+					],
+					"default": "off",
+					"markdownDescription": "Thinking mode for GLM models."
+				},
+				"clineCopilotChat.thinking.kimi": {
+					"type": "string",
+					"enum": [
+						"on",
+						"off"
+					],
+					"default": "off",
+					"markdownDescription": "Thinking mode for Kimi models."
+				},
+				"clineCopilotChat.thinking.minimax": {
+					"type": "string",
+					"enum": [
+						"off",
+						"on"
+					],
+					"default": "off",
+					"markdownDescription": "Thinking mode for MiniMax models."
+				},
+				"clineCopilotChat.thinking.mimo": {
+					"type": "string",
+					"enum": [
+						"off",
+						"low",
+						"medium",
+						"high"
+					],
+					"default": "off",
+					"markdownDescription": "Thinking mode for MiMo models."
+				},
+				"clineCopilotChat.thinking.qwen": {
+					"type": "string",
+					"enum": [
+						"auto",
+						"on",
+						"off"
+					],
+					"default": "off",
+					"markdownDescription": "Thinking mode for Qwen models."
+				},
+				"clineCopilotChat.thinking.qwenBudget": {
+					"type": "string",
+					"enum": [
+						"auto",
+						"4096",
+						"16384",
+						"32768",
+						"81920"
+					],
+					"default": "auto",
+					"markdownDescription": "Optional thinking budget for Qwen models."
+				}
+			}
+		},
+		"languageModelChatProviders": [
+			{
+				"vendor": "cline",
+				"displayName": "Cline",
+				"when": "config.clineCopilotChat.enabled",
+				"configuration": {
+					"type": "object",
+					"properties": {
+						"apiKey": {
+							"type": "string",
+							"title": "Cline API Key",
+							"description": "Your Cline API key (from app.cline.bot → Settings → API Keys). Unlocks 100+ models — pay per use.",
+							"secret": true
+						}
+					}
+				}
+			},
+			{
+				"vendor": "cline-pass",
+				"displayName": "ClinePass",
+				"when": "config.clineCopilotChat.clinePass.enabled",
+				"configuration": {
+					"type": "object",
+					"properties": {
+						"apiKey": {
+							"type": "string",
+							"title": "ClinePass API Key",
+							"description": "Your Cline API key (same as Cline). $9.99/mo subscription for 10 curated open-weight models with 2-5× rate limits.",
+							"secret": true
+						}
+					}
+				}
+			}
+		]
+	},
+	"scripts": {
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"prepackage": "npm run compile",
+		"package": "vsce package",
+		"vscode:prepublish": "npm run compile"
+	},
+	"devDependencies": {
+		"@types/node": "^25.9.3",
+		"@types/vscode": "^1.120.0",
+		"@vscode/vsce": "^3.6.0",
+		"typescript": "^6.0.3"
+	}
 }

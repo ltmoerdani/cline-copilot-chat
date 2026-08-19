@@ -17,6 +17,14 @@ interface PendingToolCall {
   arguments: string;
 }
 
+/** Token usage captured from an SSE `usage` block (Issue #4). */
+interface CapturedUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  cachedTokens?: number;
+}
+
 export interface StreamRequestOptions {
   url: string;
   providerDisplayName: string;
@@ -154,6 +162,84 @@ export async function streamChatCompletions(
     }
   }
 
+  // ── Usage capture & reporting (Issue #4) ─────────────────────────────────
+  //
+  // CONTRACT: Copilot Chat's Context Window widget and Session Info only
+  // update when the provider emits a LanguageModelDataPart with MIME "usage"
+  // at the end of the stream — the same mechanism used by Copilot's own BYOK
+  // providers (AnthropicLMProvider / GeminiNativeProvider) and by
+  // opencode-copilot-chat (`chatParts.ts` → `createUsageDataParts`).
+  //
+  // RULES:
+  //   - Usage is captured from ANY SSE chunk carrying a `usage` record: both
+  //     the finish_reason chunk and the usage-only final chunk that
+  //     `stream_options.include_usage` produces (choices: []).
+  //   - cached_tokens is read from the OpenAI-style nested
+  //     `prompt_tokens_details.cached_tokens` OR a top-level `cached_tokens`.
+  //   - The DataPart is emitted ONLY on the success path — a thrown stream
+  //     error skips the emit entirely (matches opencode engine.ts).
+  //   - Reporting failure must never fail the response.
+  let capturedUsage: CapturedUsage | undefined;
+
+  function captureUsageFromRecord(u: Record<string, unknown>): void {
+    const usage: CapturedUsage = capturedUsage ?? {};
+    if (typeof u.prompt_tokens === "number") usage.promptTokens = u.prompt_tokens;
+    if (typeof u.completion_tokens === "number") usage.completionTokens = u.completion_tokens;
+    if (typeof u.total_tokens === "number") usage.totalTokens = u.total_tokens;
+    const details = u.prompt_tokens_details;
+    const nestedCached =
+      isRecord(details) && typeof details.cached_tokens === "number" ? details.cached_tokens : undefined;
+    const topLevelCached = typeof u.cached_tokens === "number" ? u.cached_tokens : undefined;
+    const cached = nestedCached ?? topLevelCached;
+    if (cached !== undefined) usage.cachedTokens = cached;
+    capturedUsage = usage;
+  }
+
+  /** Emit the captured usage as a "usage" DataPart so VS Code can update
+   *  the Context Window widget and Session Info. No-op when nothing usable
+   *  was captured. */
+  function emitUsageDataPart(): void {
+    if (!capturedUsage) return;
+    const { promptTokens, completionTokens, totalTokens, cachedTokens } = capturedUsage;
+    if (
+      promptTokens === undefined &&
+      completionTokens === undefined &&
+      totalTokens === undefined
+    ) {
+      return; // nothing usable captured
+    }
+
+    const total =
+      totalTokens ??
+      (promptTokens !== undefined || completionTokens !== undefined
+        ? (promptTokens ?? 0) + (completionTokens ?? 0)
+        : undefined);
+
+    // OpenAI-compatible usage payload (same shape as opencode-copilot-chat
+    // toProviderUsagePayload — minus copilotCredits, which cline has no
+    // pricing table for yet).
+    const payload: Record<string, unknown> = {};
+    if (promptTokens !== undefined) payload.prompt_tokens = promptTokens;
+    if (completionTokens !== undefined) payload.completion_tokens = completionTokens;
+    if (total !== undefined) payload.total_tokens = total;
+    if (cachedTokens !== undefined) {
+      payload.prompt_tokens_details = { cached_tokens: cachedTokens };
+    }
+
+    try {
+      const encoded = new TextEncoder().encode(JSON.stringify(payload));
+      options.progress.report(new vscode.LanguageModelDataPart(encoded, "usage"));
+      options.output?.appendLine(
+        `[usage] prompt=${promptTokens ?? "n/a"} completion=${completionTokens ?? "n/a"} ` +
+          `total=${total ?? "n/a"}${cachedTokens !== undefined ? ` cached=${cachedTokens}` : ""} → reported to VS Code`,
+      );
+    } catch (error) {
+      // Never fail the response because usage reporting failed.
+      const message = error instanceof Error ? error.message : String(error);
+      options.output?.appendLine(`[usage] failed to report usage DataPart: ${message}`);
+    }
+  }
+
   function flushNativeToolCalls(): vscode.LanguageModelToolCallPart[] {
     const parts: vscode.LanguageModelToolCallPart[] = [];
     for (const [idx, tc] of pendingToolCalls) {
@@ -175,6 +261,14 @@ export async function streamChatCompletions(
     extractStreamParts: (data: unknown) => {
       const parts: vscode.LanguageModelResponsePart[] = [];
       if (!isRecord(data)) return parts;
+
+      // Capture usage BEFORE the choices guard — with
+      // stream_options.include_usage the final SSE chunk carries an EMPTY
+      // choices array plus the usage block (Issue #4). The previous code
+      // gated usage on finish_reason and never saw that chunk.
+      if (isRecord(data.usage)) {
+        captureUsageFromRecord(data.usage);
+      }
 
       const choices = data.choices;
       if (!Array.isArray(choices) || choices.length === 0) return parts;
@@ -215,26 +309,13 @@ export async function streamChatCompletions(
       }
 
       // Flush complete tool calls ONLY when finish_reason signals they are done.
+      // (Usage for this chunk was already captured above the choices guard.)
       const finishReason = first.finish_reason;
       if (typeof finishReason === "string") {
         if (finishReason === "tool_calls" || finishReason === "stop") {
           const toolParts = flushNativeToolCalls();
           emittedTools += toolParts.length;
           parts.push(...toolParts);
-        }
-
-        // Log usage data to output channel (VS Code LanguageModelChatProvider
-        // API does not expose a usage reporting type, so this is for diagnostics only).
-        if (isRecord(data.usage)) {
-          const u = data.usage;
-          const parts = [
-            typeof u.prompt_tokens === "number" ? `prompt=${u.prompt_tokens}` : null,
-            typeof u.completion_tokens === "number" ? `completion=${u.completion_tokens}` : null,
-            typeof u.cached_tokens === "number" ? `cached=${u.cached_tokens}` : null,
-          ].filter(Boolean);
-          if (parts.length > 0) {
-            options.output?.appendLine(`[usage] ${parts.join(" ")}`);
-          }
         }
       }
 
@@ -287,15 +368,7 @@ export async function streamChatCompletions(
       }
 
       if (isRecord(data.usage)) {
-        const u = data.usage;
-        const uParts = [
-          typeof u.prompt_tokens === "number" ? `prompt=${u.prompt_tokens}` : null,
-          typeof u.completion_tokens === "number" ? `completion=${u.completion_tokens}` : null,
-          typeof u.cached_tokens === "number" ? `cached=${u.cached_tokens}` : null,
-        ].filter(Boolean);
-        if (uParts.length > 0) {
-          options.output?.appendLine(`[usage] ${uParts.join(" ")}`);
-        }
+        captureUsageFromRecord(data.usage);
       }
 
       return parts;
@@ -317,6 +390,11 @@ export async function streamChatCompletions(
     emittedTools++;
     options.progress.report(part);
   }
+
+  // Report captured usage to VS Code so the Copilot Chat Context Window
+  // widget and Session Info update (Issue #4). Success path only — a thrown
+  // stream error skips this, matching opencode-copilot-chat's behavior.
+  emitUsageDataPart();
 
   options.output?.appendLine(
     `[stream-summary model=${options.modelId}] textChars=${emittedText} toolCalls=${emittedTools} reasoningChars=${reasoningChars}`,
