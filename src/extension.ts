@@ -17,6 +17,24 @@ import {
   type AllProviderVendor,
 } from "./providerTypes";
 import { resolveModelMetadata, isProductSurfacesOnlyModel } from "./metadata";
+import {
+  bundledCatalog,
+  getDynamicModelSettings,
+  invalidateDocCache,
+  loadCatalog,
+  loadSnapshot,
+  saveSnapshot,
+  type CatalogKind,
+  type CatalogResult,
+} from "./catalog";
+import {
+  classifyModelUnavailable,
+  clearUnavailable,
+  describeUnavailable,
+  getUnavailable,
+  getUnavailableIds,
+  markUnavailable,
+} from "./availability";
 import { buildThinkingPayload, buildModelConfigurationSchema, getSettings } from "./thinking";
 import { streamChatCompletions } from "./streaming";
 import { estimateTokenCount, estimateChatMessageTokenCount } from "./tokens";
@@ -66,63 +84,92 @@ interface ModelDef {
   family: string;
 }
 
-const CLINEPASS_MODEL_DEFS: ModelDef[] = [
-  { id: "cline-pass/glm-5.2",             name: "GLM 5.2",              family: "Z.ai" },
-  { id: "cline-pass/kimi-k3",             name: "Kimi K3",              family: "Moonshot AI" },
-  { id: "cline-pass/kimi-k2.7-code",      name: "Kimi K2.7 Code",       family: "Moonshot AI" },
-  { id: "cline-pass/kimi-k2.6",           name: "Kimi K2.6",            family: "Moonshot AI" },
-  { id: "cline-pass/deepseek-v4-pro",     name: "DeepSeek V4 Pro",      family: "DeepSeek" },
-  { id: "cline-pass/deepseek-v4-flash",   name: "DeepSeek V4 Flash",    family: "DeepSeek" },
-  { id: "cline-pass/mimo-v2.5",           name: "MiMo V2.5",            family: "MiMo" },
-  { id: "cline-pass/mimo-v2.5-pro",       name: "MiMo V2.5 Pro",        family: "MiMo" },
-  { id: "cline-pass/minimax-m3",          name: "MiniMax M3",           family: "MiniMax" },
-  { id: "cline-pass/qwen3.8-max",         name: "Qwen3.8 Max",          family: "Qwen" },
-  { id: "cline-pass/qwen3.7-max",         name: "Qwen3.7 Max",          family: "Qwen" },
-  { id: "cline-pass/qwen3.7-plus",        name: "Qwen3.7 Plus",         family: "Qwen" },
+// ── Bundled fallback model definitions ─────────────────────────────────────
+//
+// These are NO LONGER the advertised list — the picker is driven by the live
+// catalog in catalog.ts. They are the last-resort fallback used when the catalog
+// is unreachable AND no snapshot exists on this machine, and they document what
+// each provider looked like at build time. Keep them in sync with
+// `npm run check-models`.
+
+// ClinePass fallback — mirrors the `clinePass` array of
+// /api/v1/ai/cline/recommended-models at release time.
+const FALLBACK_CLINEPASS_MODEL_DEFS: ModelDef[] = [
+  { id: "cline-pass/mimo-v2.6-pro",              name: "MiMo V2.6 Pro",              family: "MiMo" },
+  { id: "cline-pass/deepseek-v4.1-flash-1017",   name: "DeepSeek V4.1 Flash 1017",   family: "DeepSeek" },
+  { id: "cline-pass/kimi-k3.1-pro",              name: "Kimi K3.1 Pro",              family: "Moonshot AI" },
+  { id: "cline-pass/minimax-m3.1-flash",         name: "MiniMax M3.1 Flash",         family: "MiniMax" },
+  { id: "cline-pass/mimo-v2.6-flash",            name: "MiMo V2.6 Flash",            family: "MiMo" },
+  { id: "cline-pass/glm-5.3",                    name: "GLM 5.3",                    family: "Z.ai" },
+  { id: "cline-pass/deepseek-v4-pro",            name: "DeepSeek V4 Pro",            family: "DeepSeek" },
+  { id: "cline-pass/qwen3.8-max",                name: "Qwen3.8 Max",                family: "Qwen" },
+  { id: "cline-pass/muse-spark-1.3-contributor", name: "Muse Spark 1.3 Contributor", family: "Meta" },
+  { id: "cline-pass/kimi-k3",                    name: "Kimi K3",                    family: "Moonshot AI" },
+  { id: "cline-pass/glm-5.3-flash",              name: "GLM 5.3 Flash",              family: "Z.ai" },
+  { id: "cline-pass/minimax-m3",                 name: "MiniMax M3",                 family: "MiniMax" },
+  { id: "cline-pass/qwen3.7-plus",               name: "Qwen3.7 Plus",               family: "Qwen" },
+  { id: "cline-pass/qwen3.7-max",                name: "Qwen3.7 Max",                family: "Qwen" },
 ];
 
-const CLINE_MODEL_DEFS: ModelDef[] = [
-  // DeepSeek — terbukti 200 OK (flash) / 402 (pro, v3, r1)
-  { id: "deepseek/deepseek-v4-flash",     name: "DeepSeek V4 Flash",     family: "DeepSeek" },
-  { id: "deepseek/deepseek-v4-pro",       name: "DeepSeek V4 Pro",       family: "DeepSeek" },
-  { id: "deepseek/deepseek-v3",           name: "DeepSeek V3",           family: "DeepSeek" },
-  { id: "deepseek/deepseek-r1",           name: "DeepSeek R1",           family: "DeepSeek" },
-  { id: "deepseek/deepseek-chat",         name: "DeepSeek Chat",         family: "DeepSeek" },
-  // OpenAI — 402 MODEL VALID
-  { id: "openai/gpt-4o",                  name: "GPT-4o",                family: "OpenAI" },
-  { id: "openai/gpt-5",                   name: "GPT-5",                 family: "OpenAI" },
-  { id: "openai/o3",                      name: "o3",                    family: "OpenAI" },
-  // Google — 402 MODEL VALID
-  { id: "google/gemini-2.5-pro",          name: "Gemini 2.5 Pro",        family: "Google" },
-  // Grok / xAI — 402 MODEL VALID
-  { id: "xai/grok-3",                     name: "Grok 3",                family: "xAI" },
-  { id: "xai/grok-4",                     name: "Grok 4",                family: "xAI" },
-  // Z.ai / GLM — 402 MODEL VALID
-  { id: "zai/glm-5.2",                    name: "GLM 5.2",               family: "Z.ai" },
-  // Moonshot / Kimi — 402 MODEL VALID
-  { id: "moonshot/kimi-k3",               name: "Kimi K3",               family: "Moonshot AI" },
-  { id: "moonshot/kimi-k2.7-code",        name: "Kimi K2.7 Code",        family: "Moonshot AI" },
-  { id: "moonshot/kimi-k2.6",             name: "Kimi K2.6",             family: "Moonshot AI" },
-  // MiMo — 402 MODEL VALID
-  { id: "mimo/mimo-v2.5",                 name: "MiMo V2.5",             family: "MiMo" },
-  { id: "mimo/mimo-v2.5-pro",             name: "MiMo V2.5 Pro",         family: "MiMo" },
-  // MiniMax — m2.5 verified API-accessible via live probe (402 credits check,
-  // not 403 product-surfaces). Docs label it "free experimentation" but via
-  // API key it is billed through Cline credits like other paid models.
-  { id: "minimax/minimax-m2.5",             name: "MiniMax M2.5",          family: "MiniMax" },
-  { id: "minimax/minimax-m3",             name: "MiniMax M3",            family: "MiniMax" },
-  // Qwen — 402 MODEL VALID
-  { id: "qwen/qwen3.8-max",              name: "Qwen3.8 Max",           family: "Qwen" },
-  { id: "qwen/qwen3.7-max",              name: "Qwen3.7 Max",           family: "Qwen" },
-  { id: "qwen/qwen3.7-plus",             name: "Qwen3.7 Plus",          family: "Qwen" },
-  // Mistral — 402 MODEL VALID
-  { id: "mistral/mistral-large",          name: "Mistral Large",         family: "Mistral" },
-  // Meta — 402 MODEL VALID
-  { id: "meta/llama-4-maverick",          name: "Llama 4 Maverick",      family: "Meta" },
-  // Perplexity — 402 MODEL VALID
-  { id: "perplexity/sonar-pro",           name: "Sonar Pro",             family: "Perplexity" },
-  // Cohere — 402 MODEL VALID
-  { id: "cohere/command-r-plus",          name: "Command R+",            family: "Cohere" },
+// Cline pay-per-use fallback — a curated snapshot of the tool-capable catalog.
+// The live picker lists the full tool-capable catalog (~300 models); this short
+// list only exists so an offline first run is still usable.
+const FALLBACK_CLINE_MODEL_DEFS: ModelDef[] = [
+  // DeepSeek
+  { id: "deepseek/deepseek-v4.1-flash-1017", name: "DeepSeek V4.1 Flash 1017", family: "DeepSeek" },
+  { id: "deepseek/deepseek-v4.1-flash",   name: "DeepSeek V4.1 Flash",     family: "DeepSeek" },
+  { id: "deepseek/deepseek-v4-pro",       name: "DeepSeek V4 Pro",         family: "DeepSeek" },
+  // deepseek/deepseek-v4-flash → hidden, see PRODUCT_SURFACES_ONLY_MODELS (Issue #3)
+  { id: "deepseek/deepseek-v4-flash",     name: "DeepSeek V4 Flash",       family: "DeepSeek" },
+  { id: "deepseek/deepseek-chat",         name: "DeepSeek Chat",           family: "DeepSeek" },
+  // Anthropic
+  { id: "anthropic/claude-opus-5.5",      name: "Claude Opus 5.5",         family: "Anthropic" },
+  { id: "anthropic/claude-sonnet-5.5",    name: "Claude Sonnet 5.5",       family: "Anthropic" },
+  { id: "anthropic/claude-haiku-5.5",     name: "Claude Haiku 5.5",        family: "Anthropic" },
+  { id: "anthropic/claude-opus-5",        name: "Claude Opus 5",           family: "Anthropic" },
+  { id: "anthropic/claude-fable-5.1",     name: "Claude Fable 5.1",        family: "Anthropic" },
+  // OpenAI
+  { id: "openai/gpt-6.1-terra-pro",       name: "GPT-6.1 Terra Pro",       family: "OpenAI" },
+  { id: "openai/gpt-6.1-terra",           name: "GPT-6.1 Terra",           family: "OpenAI" },
+  { id: "openai/gpt-5",                   name: "GPT-5",                   family: "OpenAI" },
+  { id: "openai/o3",                      name: "o3",                      family: "OpenAI" },
+  { id: "openai/gpt-4o",                  name: "GPT-4o",                  family: "OpenAI" },
+  // Google
+  { id: "google/gemini-4-argon",          name: "Gemini 4 Argon",          family: "Google" },
+  { id: "google/gemini-2.5-pro",          name: "Gemini 2.5 Pro",          family: "Google" },
+  // xAI
+  { id: "x-ai/grok-4.7",                  name: "Grok 4.7",                family: "xAI" },
+  { id: "x-ai/grok-4.6",                  name: "Grok 4.6",                family: "xAI" },
+  { id: "x-ai/grok-4.20",                 name: "Grok 4.20",               family: "xAI" },
+  // Z.ai / GLM
+  { id: "z-ai/glm-5.3",                   name: "GLM 5.3",                 family: "Z.ai" },
+  { id: "z-ai/glm-5.3-flash",             name: "GLM 5.3 Flash",           family: "Z.ai" },
+  { id: "z-ai/glm-5.2",                   name: "GLM 5.2",                 family: "Z.ai" },
+  // Moonshot / Kimi
+  { id: "moonshotai/kimi-k3.1-pro",       name: "Kimi K3.1 Pro",           family: "Moonshot AI" },
+  { id: "moonshotai/kimi-k3",             name: "Kimi K3",                 family: "Moonshot AI" },
+  { id: "moonshotai/kimi-k2.7-code",      name: "Kimi K2.7 Code",          family: "Moonshot AI" },
+  // MiMo
+  { id: "xiaomi/mimo-v2.6-pro",           name: "MiMo V2.6 Pro",           family: "MiMo" },
+  { id: "xiaomi/mimo-v2.6-flash",         name: "MiMo V2.6 Flash",         family: "MiMo" },
+  { id: "xiaomi/mimo-v2.5-pro",           name: "MiMo V2.5 Pro",           family: "MiMo" },
+  // MiniMax
+  { id: "minimax/minimax-m3.1-flash",     name: "MiniMax M3.1 Flash",      family: "MiniMax" },
+  { id: "minimax/minimax-m3",             name: "MiniMax M3",              family: "MiniMax" },
+  { id: "minimax/minimax-m2.5",           name: "MiniMax M2.5",            family: "MiniMax" },
+  // Qwen
+  { id: "qwen/qwen3.8-max-prime",         name: "Qwen3.8 Max Prime",       family: "Qwen" },
+  { id: "qwen/qwen3.8-max-0902",          name: "Qwen3.8 Max 0902",        family: "Qwen" },
+  { id: "qwen/qwen3.8-flash",             name: "Qwen3.8 Flash",           family: "Qwen" },
+  { id: "qwen/qwen3.7-max",               name: "Qwen3.7 Max",             family: "Qwen" },
+  { id: "qwen/qwen3.7-plus",              name: "Qwen3.7 Plus",            family: "Qwen" },
+  // Mistral
+  { id: "mistralai/mistral-large-4-0",    name: "Mistral Large 4.0",       family: "Mistral" },
+  { id: "mistralai/mistral-large",        name: "Mistral Large",           family: "Mistral" },
+  // Meta
+  { id: "meta-llama/llama-4-maverick",    name: "Llama 4 Maverick",        family: "Meta" },
+  // Perplexity
+  { id: "perplexity/sonar-pro",           name: "Sonar Pro",               family: "Perplexity" },
 ];
 
 // ── Internal model type ────────────────────────────────────────────────────
@@ -136,7 +183,10 @@ interface ClineCopilotChatModel extends vscode.LanguageModelChatInformation {
 interface ProviderConfig {
   vendor: AllProviderVendor;
   displayName: string;
-  models: ModelDef[];
+  /** Which live catalog this provider maps to. */
+  catalogKind: CatalogKind;
+  /** Last-resort list when the live catalog and the snapshot are both missing. */
+  fallbackModels: ModelDef[];
   labelPrefix: string;
   testModelId: string;
 }
@@ -145,7 +195,8 @@ const PROVIDER_CONFIGS: Record<AllProviderVendor, ProviderConfig> = {
   [CLINE_VENDOR]: {
     vendor: CLINE_VENDOR,
     displayName: "Cline",
-    models: CLINE_MODEL_DEFS,
+    catalogKind: "payg",
+    fallbackModels: FALLBACK_CLINE_MODEL_DEFS,
     labelPrefix: "Cline",
     // Issue #3: deepseek/deepseek-v4-flash now returns 403 "product surfaces"
     // on the public API-key path — use deepseek-chat (still API-served) for tests.
@@ -154,9 +205,11 @@ const PROVIDER_CONFIGS: Record<AllProviderVendor, ProviderConfig> = {
   [CLINE_PASS_VENDOR]: {
     vendor: CLINE_PASS_VENDOR,
     displayName: "ClinePass",
-    models: CLINEPASS_MODEL_DEFS,
+    catalogKind: "pass",
+    fallbackModels: FALLBACK_CLINEPASS_MODEL_DEFS,
     labelPrefix: "ClinePass",
-    testModelId: "cline-pass/deepseek-v4-flash",
+    // Cheapest current ClinePass model — used for the "verify connection" probe.
+    testModelId: "cline-pass/deepseek-v4.1-flash",
   },
 };
 
@@ -189,6 +242,97 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
   private byokGroupKey(): string {
     return `cline.hasByokGroup.v1.${this.config.vendor}`;
   }
+
+  // ── Model catalog ──────────────────────────────────────────────────────
+
+  private catalogCache: { at: number; result: CatalogResult } | undefined;
+
+  /**
+   * Resolve the advertised model list. Degrades live → snapshot → bundled.
+   *
+   * CONTRACT: this never returns an empty list. An empty list makes VS Code treat
+   * the provider as deleted, which is exactly how the old "models disappeared
+   * from the picker" bugs looked.
+   */
+  async resolveCatalog(force = false): Promise<CatalogResult> {
+    const settings = getDynamicModelSettings();
+    const now = Date.now();
+    const ttlMs = settings.refreshHours * 60 * 60 * 1000;
+
+    if (!force && this.catalogCache && now - this.catalogCache.at < ttlMs) {
+      return this.catalogCache.result;
+    }
+
+    if (settings.enabled) {
+      try {
+        const result = await loadCatalog(this.config.catalogKind, settings, (line) => this.log(line));
+        this.catalogCache = { at: now, result };
+        await saveSnapshot(this.context.globalState, this.config.vendor, result);
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.log(`[catalog] live fetch failed: ${message}`);
+      }
+    } else {
+      this.log("[catalog] dynamicModels.enabled = false — using bundled list.");
+    }
+
+    const snapshot = await loadSnapshot(this.context.globalState, this.config.vendor);
+    if (snapshot) {
+      const ageHours = ((now - snapshot.fetchedAt) / 3_600_000).toFixed(1);
+      this.log(`[catalog] using snapshot (${snapshot.models.length} models, ${ageHours}h old)`);
+      const result: CatalogResult = {
+        models: snapshot.models,
+        source: "snapshot",
+        detail: `snapshot, ${ageHours}h old`,
+        fetchedAt: snapshot.fetchedAt,
+      };
+      this.catalogCache = { at: now, result };
+      return result;
+    }
+
+    const models = bundledCatalog(this.config.fallbackModels);
+    this.log(`[catalog] no snapshot — using bundled fallback (${models.length} models)`);
+    const result: CatalogResult = {
+      models,
+      source: "bundled",
+      detail: "bundled fallback",
+      fetchedAt: now,
+    };
+    this.catalogCache = { at: now, result };
+    return result;
+  }
+
+  /**
+   * Refresh the catalog and, when the resulting id set changed, tell VS Code so
+   * the open picker updates without a window reload.
+   */
+  async refreshCatalog(options: { force?: boolean; silent?: boolean } = {}): Promise<CatalogResult> {
+    if (options.force) invalidateDocCache();
+    const before = this.catalogCache?.result.models.map((model) => model.id).join("|");
+    const result = await this.resolveCatalog(options.force ?? false);
+    const after = result.models.map((model) => model.id).join("|");
+    if (before !== after) {
+      this.changeEmitter.fire();
+    }
+    if (!options.silent) {
+      vscode.window.showInformationMessage(
+        `${this.config.displayName}: ${result.models.length} models (${result.source}).`,
+      );
+    }
+    return result;
+  }
+
+  /** Background warm-up so the first picker open is not blocked on the network. */
+  async prewarmCatalog(): Promise<void> {
+    try {
+      await this.refreshCatalog({ silent: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.log(`[catalog] prewarm failed: ${message}`);
+    }
+  }
+
 
   // ── LanguageModelChatProvider ──────────────────────────────────────────
 
@@ -246,19 +390,27 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       return [];
     }
 
-    // Issue #3: hide models confirmed to return 403 "product surfaces" on the
-    // public API-key path. Bundled limits metadata stays intact (metadata.ts).
-    const blocked = this.config.models.filter((m) => isProductSurfacesOnlyModel(m.id));
+    // The advertised list comes from the live catalog (catalog.ts), minus models
+    // that proved uncallable for this account (availability.ts). Limits and
+    // capabilities arrive with the catalog, so metadata.ts is now only the
+    // offline fallback — nothing here can go stale.
+    const { models: catalog, source, detail } = await this.resolveCatalog();
+
+    const unavailable = getUnavailableIds(this.context);
+    const blocked = catalog.filter(
+      (model) => isProductSurfacesOnlyModel(model.id) || unavailable.has(model.id),
+    );
     if (blocked.length > 0) {
       this.log(
-        `[${this.config.displayName}] hiding ${blocked.length} product-surfaces-only model(s): ` +
-          blocked.map((m) => m.id).join(", "),
+        `[${this.config.displayName}] hiding ${blocked.length} unavailable model(s): ` +
+          `${blocked.slice(0, 10).map((model) => model.id).join(", ")}` +
+          (blocked.length > 10 ? ", …" : ""),
       );
     }
-    const models = this.config.models
-      .filter((model) => !isProductSurfacesOnlyModel(model.id))
+
+    const models = catalog
+      .filter((model) => !isProductSurfacesOnlyModel(model.id) && !unavailable.has(model.id))
       .map((model) => {
-        const metadata = resolveModelMetadata(model.id);
         const effectiveId = `${this.config.vendor}:${model.id}`;
         if (apiKey) {
           this.apiKeysByModelId.set(model.id, apiKey);
@@ -273,10 +425,10 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
           name: `${this.config.labelPrefix} / ${model.name}`,
           family: model.family,
           version: "1.0.0",
-          maxInputTokens: metadata.contextWindow,
-          maxOutputTokens: metadata.maxOutputTokens,
+          maxInputTokens: model.contextWindow,
+          maxOutputTokens: model.maxOutputTokens,
           capabilities: {
-            imageInput: metadata.supportsVision,
+            imageInput: model.vision,
             toolCalling: true,
           },
           configurationSchema,
@@ -284,7 +436,8 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       });
 
     this.log(
-      `[${this.config.displayName}] advertising ${models.length} model(s) to VS Code ` +
+      `[${this.config.displayName}] advertising ${models.length}/${catalog.length} model(s) ` +
+        `(catalog=${source}: ${detail}) ` +
         `[${models.slice(0, 3).map((m) => m.rawModelId).join(", ")}${models.length > 3 ? ", …" : ""}]`,
     );
     return models;
@@ -456,6 +609,24 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
       }
       const message = error instanceof Error ? error.message : String(error);
       this.log(`[${this.config.displayName}] ERROR model=${rawModelId}: ${message}`);
+
+      // Self-healing availability: a model-level rejection means this id is not
+      // callable with this account (retired, moved behind Cline product
+      // surfaces, or never entitled). Hide it from the picker immediately so it
+      // can never be selected again. Account-level failures (401/402/429) are
+      // deliberately not classified — suppressing on those would empty the list.
+      const reason = classifyModelUnavailable(error);
+      if (reason && rawModelId) {
+        const isNew = await markUnavailable(this.context, rawModelId, reason);
+        this.log(
+          `[${this.config.displayName}] model ${rawModelId} marked unavailable (${reason})` +
+            (isNew ? " — refreshing picker." : " (already known)."),
+        );
+        if (isNew) {
+          this.changeEmitter.fire();
+        }
+      }
+
       // Copilot Chat surfaces the thrown error's `message` to the user. For
       // request errors we own (e.g. 403 product-surfaces), swap the raw HTTP
       // detail for the actionable userMessage so users see the cause and the
@@ -519,6 +690,22 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
     }
   }
 
+  /** Command Palette: Cline Copilot Chat — Refresh Models. */
+  async refreshModelsCommand(): Promise<void> {
+    await this.refreshCatalog({ force: true });
+  }
+
+  /** Command Palette: Cline Copilot Chat — Reset Hidden Models. */
+  async resetAvailability(): Promise<void> {
+    const count = await clearUnavailable(this.context);
+    this.changeEmitter.fire();
+    vscode.window.showInformationMessage(
+      count > 0
+        ? `${this.config.displayName}: restored ${count} previously hidden model(s).`
+        : `${this.config.displayName}: no hidden models to restore.`,
+    );
+  }
+
   async setApiKey(): Promise<void> {
     const apiKey = await vscode.window.showInputBox({
       title: `${this.config.displayName} API Key`,
@@ -542,12 +729,24 @@ class ClineProvider implements vscode.LanguageModelChatProvider<ClineCopilotChat
 
     const statusBar = vscode.window.setStatusBarMessage(`$(loading~spin) Testing ${this.config.displayName}…`);
 
+    // Probe a model that the live catalog still offers: prefer the configured
+    // testModelId, otherwise the first advertised model. Keeps "Test Connection"
+    // working across catalog rotations instead of failing on a retired id.
+    const hidden = getUnavailableIds(this.context);
+    const catalog = await this.resolveCatalog();
+    const probeModelId =
+      (catalog.models.some((m) => m.id === this.config.testModelId && !hidden.has(m.id))
+        ? this.config.testModelId
+        : catalog.models.find((m) => !hidden.has(m.id) && !isProductSurfacesOnlyModel(m.id))?.id) ??
+      this.config.testModelId;
+    this.log(`Test connection using model=${probeModelId}`);
+
     try {
       const response = await fetch(`${BASE_URL}/chat/completions`, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: this.config.testModelId,
+          model: probeModelId,
           messages: [{ role: "user", content: "reply with just: ok" }],
           max_tokens: 10,
           stream: false,
@@ -921,9 +1120,41 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("clineCopilotChat.toggleProviderPass", () =>
       toggleProviderEnabled(CLINE_PASS_VENDOR, "ClinePass"),
     ),
+    vscode.commands.registerCommand("clineCopilotChat.refreshModels", async () => {
+      // Refresh applies to both providers — they share the same key and the same
+      // upstream catalog endpoints, so users expect one action to update both.
+      const choice = await vscode.window.showQuickPick(
+        [
+          { label: "Both providers", action: "both" as const },
+          { label: "Cline (pay-per-use)", action: "payg" as const },
+          { label: "ClinePass", action: "pass" as const },
+        ],
+        { title: "Refresh model list", placeHolder: "Which provider should re-fetch its catalog?" },
+      );
+      if (!choice) return;
+      if (choice.action !== "pass") await paygProvider.refreshModelsCommand();
+      if (choice.action !== "payg") await passProvider.refreshModelsCommand();
+    }),
+    vscode.commands.registerCommand("clineCopilotChat.resetModelAvailability", async () => {
+      // Clearing is global, so run it once and refresh both pickers afterwards.
+      const count = await clearUnavailable(context);
+      await paygProvider.refreshCatalog({ silent: true });
+      await passProvider.refreshCatalog({ silent: true });
+      vscode.window.showInformationMessage(
+        count > 0
+          ? `Cline Copilot Chat: restored ${count} hidden model(s).`
+          : "Cline Copilot Chat: no hidden models to restore.",
+      );
+    }),
     vscode.commands.registerCommand("clineCopilotChat.diagnostics", async () => {
       const paygModels = await vscode.lm.selectChatModels({ vendor: CLINE_VENDOR });
       const passModels = await vscode.lm.selectChatModels({ vendor: CLINE_PASS_VENDOR });
+
+      // Catalog provenance + learned unavailability: the two things that explain
+      // "why is this model (not) in my picker".
+      const paygCatalog = await paygProvider.resolveCatalog();
+      const passCatalog = await passProvider.resolveCatalog();
+      const hiddenLabels = describeUnavailable(getUnavailable(context));
 
       const fmt = (m: vscode.LanguageModelChat) => {
         const raw = (m as unknown as { rawModelId?: string }).rawModelId ?? m.id;
@@ -937,6 +1168,15 @@ export function activate(context: vscode.ExtensionContext) {
 
       const content = [
         "# Cline Copilot Chat Diagnostics",
+        "",
+        "## Catalog sources",
+        `- Cline: ${paygCatalog.source} — ${paygCatalog.models.length} models (${paygCatalog.detail})`,
+        `- ClinePass: ${passCatalog.source} — ${passCatalog.models.length} models (${passCatalog.detail})`,
+        "",
+        `## Hidden models (${hiddenLabels.length})`,
+        hiddenLabels.length > 0
+          ? hiddenLabels.map((line) => `- ${line}`).join("\n")
+          : "_None. Models are hidden automatically after a model-level API rejection._",
         "",
         `## Cline (pay-per-use) — ${paygModels.length} models`,
         ...paygModels.map(fmt),
@@ -979,6 +1219,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   // VS Code 1.128+ — auto-fix BYOK utility model so background tasks work
   checkUtilityModelConfiguration(context);
+
+  // Warm the dynamic catalog in the background so the first picker open is not
+  // blocked on the network, and so a snapshot exists for offline sessions.
+  // Deliberately not awaited: activation must never wait on a fetch.
+  void paygProvider.prewarmCatalog();
+  void passProvider.prewarmCatalog();
 
   // Activation diagnostics + setContext workaround — addresses the same class
   // of "models missing from picker on a fresh device / second machine" bug that

@@ -6,6 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.2.0] — 2026-11-04
+
+### Added
+
+- **Live model catalog — the picker can no longer go stale.** The advertised model list is now fetched from Cline's own catalog endpoints instead of being compiled into the bundle: `GET /api/v1/ai/cline/models` (438 entries, each with `context_length`, `top_provider.max_completion_tokens`, `architecture.input_modalities` and `supported_parameters`) and `GET /api/v1/ai/cline/recommended-models` (`recommended` / `free` / `clinePass` — the subscription's source of truth). These are the same two unauthenticated endpoints the Cline extension calls, so new models appear and retired ones disappear without shipping a new build. Advertised counts today: **306 pay-per-use** (full tool-capable catalog, newest first, `:batch` SKUs and `~alias` pointers excluded, free tier included and tagged "(free)") and **14 ClinePass**. New module `src/catalog.ts`. `[Models]`
+- **Token limits and capabilities now come from the live catalog**, replacing hand-maintained guesses: `top_provider.context_length` → `maxInputTokens`, `top_provider.max_completion_tokens` → `maxOutputTokens`, `input_modalities` containing `image` → `imageInput`, `reasoning*` in `supported_parameters` → thinking support. E.g. `kimi-k3.1-pro` reports a 943,718-token output budget and `glm-5.3` is correctly text-only while `glm-5.3-flash` is multimodal. ClinePass entries carry no specs, so each `cline-pass/<bare>` is matched to its non-prefixed twin (`cline-pass/glm-5.3` → `z-ai/glm-5.3`) before falling back to the bundled snapshot. `[Models]`
+- **Self-healing availability (`src/availability.ts`).** A model-level rejection during a request now hides that model from every picker immediately: 404 / "model not found" / "does not exist" / `403 "only available via Cline product surfaces"`. This makes the hardcoded `PRODUCT_SURFACES_ONLY_MODELS` list self-populating and covers the gap a catalog cannot see — models that exist upstream but are not entitled for this account. Account-level failures (401 bad key, 402 no credits, 429 rate limit) are deliberately **never** suppressed, because hiding the list on those would make the extension look broken. `[Availability]`
+- **Fallback chain that never empties the picker.** live catalog → `globalState` snapshot (`cline.catalog.v1.<vendor>`, schema-validated so corrupt state is ignored) → bundled defs in `extension.ts`. An empty model list makes VS Code treat the provider as deleted, so `resolveCatalog()` returns the bundled list rather than nothing when both the network and the snapshot are unavailable. `[Extension]`
+- **Commands:** `Cline Copilot Chat: Refresh Model List` (`clineCopilotChat.refreshModels`, per-provider or both) and `Cline Copilot Chat: Restore Hidden Models` (`clineCopilotChat.resetModelAvailability`). `[Commands]`
+- **Settings:** `clineCopilotChat.dynamicModels.enabled` (default `true`), `clineCopilotChat.dynamicModels.refreshHours` (default `6`, minimum `0.25`) and `clineCopilotChat.dynamicModels.catalogBaseUrl` (default `https://api.cline.bot`, for testing/proxies). `[Settings]`
+- **Diagnostics** now report catalog provenance per provider (`live` / `snapshot` / `bundled`, model count, age) plus every hidden model with its reason and timestamp — the two things that answer "why is this model (not) in my picker?". `[Diagnostics]`
+
+### Changed
+
+- **Bundled model lists demoted to fallbacks.** `CLINEPASS_MODEL_DEFS` / `CLINE_MODEL_DEFS` are now `FALLBACK_CLINEPASS_MODEL_DEFS` / `FALLBACK_CLINE_MODEL_DEFS` and are only used when the catalog is unreachable *and* no snapshot exists. The ClinePass fallback is aligned with Cline's live `clinePass` list (14 models); `cline-pass/deepseek-v4.1-flash` and `cline-pass/glm-5.2` are no longer offered by Cline but stay resolvable in `metadata.ts`. `[Models]`
+- **"Test Connection" no longer depends on a hardcoded probe id.** It prefers the configured `testModelId` when the live catalog still offers it and otherwise probes the first advertised model, so a retired model can't turn a connectivity test into a false failure. `[Extension]`
+- **`npm run check-models` rewritten** against the two live endpoints. It now guards the offline fallback instead of the advertised list, exits non-zero only when a fallback pay-per-use id vanished upstream, and reports ClinePass drift plus curated models that ship no specs. `[Tooling]`
+- **Catalog refresh is event-driven:** when the resulting id set changes, `onDidChangeLanguageModelChatInformation` fires so an open picker updates without a window reload. A background prewarm runs on activation so the first picker open is not blocked on the network. `[Extension]`
+
+---
+
+## [0.1.9] — 2026-11-04
+
+### Changed
+
+- **ClinePass catalog refreshed to Cline 4.1.26.** The subscription now serves 16 models; the picker advertised 12, five of which (`cline-pass/kimi-k2.7-code`, `cline-pass/kimi-k2.6`, `cline-pass/deepseek-v4-flash`, `cline-pass/mimo-v2.5`, `cline-pass/mimo-v2.5-pro`) have been retired and returned errors when selected. Added the current lineup: `kimi-k3.1-pro`, `minimax-m3.1-flash`, `deepseek-v4.1-flash`, `deepseek-v4.1-flash-1017`, `mimo-v2.6-flash`, `mimo-v2.6-pro`, `glm-5.3`, `glm-5.3-flash`, `muse-spark-1.3-contributor`. Retired IDs are no longer advertised but their limits stay resolvable in `metadata.ts`. `[Models]`
+- **ClinePass limits corrected from Cline's own catalog** (`@cline/llms`), e.g. `qwen3.8-max` 262k ctx / 128k output (was 1M / 65k), `minimax-m3` 1M ctx / 512k output (was 192k / 131k). Prevents requests that VS Code believed were in-budget from failing upstream with a context-length error. `[Models]`
+- **Cline pay-per-use IDs re-verified against the live catalog** (`GET https://api.cline.bot/api/v1/models`, 438 models today). Fixed vendor prefixes that had silently retired whole families: `xai/` → `x-ai/`, `zai/` → `z-ai/`, `moonshot/` → `moonshotai/`, `mimo/` → `xiaomi/`, `mistral/` → `mistralai/`, `meta/` → `meta-llama/`. Added Claude 5.5 / Opus 5 / Fable 5.1, GPT-6.1 Terra (+Pro), Gemini 4 Argon, Grok 4.6–4.7, GLM 5.3 / 5.3 Flash, Kimi K3.1 Pro, MiMo V2.6, MiniMax M3.1 Flash, Qwen3.8 Max Prime / 0902 / Flash, Mistral Large 4.0. Dropped the delisted `cohere/command-r-plus`; `deepseek/deepseek-v3` and `deepseek/deepseek-r1` moved to the retired block. `[Models]`
+- **Vision + reasoning capability sets rebuilt** for both providers. ClinePass entries now come from Cline's `capabilities` array (`"images"` → image input, `"reasoning"` → thinking), so e.g. `glm-5.3` is correctly text-only while `glm-5.3-flash` accepts images. `[Models]`
+- **Test/verify-connection model** for ClinePass is now `cline-pass/deepseek-v4.1-flash` (the old `cline-pass/deepseek-v4-flash` no longer exists). `[Extension]`
+
+### Added
+
+- **`npm run check-models`** (`scripts/check-models.mjs`) — reads the IDs out of `src/extension.ts`, diffs them against the live `api.cline.bot` catalog, and diffs the ClinePass list against the catalog bundled in the locally installed Cline extension. Exits non-zero on drift, so catalog rot is caught before it ships. `[Tooling]`
+
+---
+
 ## [0.1.8] — 2026-08-19
 
 ### Added
