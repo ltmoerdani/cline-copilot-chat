@@ -1,8 +1,8 @@
 {
 	"name": "cline-copilot-chat",
-	"displayName": "Cline Copilot Chat — BYOK 33+ AI Models",
-	"description": "Use 33+ frontier AI models (DeepSeek V4, Kimi K2.7, GLM 5.2, GPT-5, Gemini 2.5, Grok 4, Qwen3.7, MiMo V2.5, MiniMax M3, Claude, free models) in GitHub Copilot Chat. Bring Your Own Key — Cline pay-per-use or ClinePass $9.99/mo.",
-	"version": "0.1.8",
+	"displayName": "Cline Copilot Chat — BYOK Live Model Catalog",
+	"description": "Use 300+ frontier AI models (GLM 5.3, Kimi K3.1 Pro, DeepSeek V4.1, Claude 5.5, GPT-6.1, Gemini 4, Grok 4.7, Qwen3.8, MiMo V2.6, MiniMax M3.1) in GitHub Copilot Chat. The model list is fetched live from Cline, so retired models never appear. Bring Your Own Key — Cline pay-per-use or ClinePass $9.99/mo.",
+	"version": "0.2.0",
 	"publisher": "ltmoerdani",
 	"license": "MIT",
 	"icon": "media/logo-cline-copilot-chat.png",
@@ -94,11 +94,35 @@
 			{
 				"command": "clineCopilotChat.toggleProviderPass",
 				"title": "Cline Copilot Chat: Remove/Re-add ClinePass in Language Models"
+			},
+			{
+				"command": "clineCopilotChat.refreshModels",
+				"title": "Cline Copilot Chat: Refresh Model List"
+			},
+			{
+				"command": "clineCopilotChat.resetModelAvailability",
+				"title": "Cline Copilot Chat: Restore Hidden Models"
 			}
 		],
 		"configuration": {
 			"title": "Cline Copilot Chat",
 			"properties": {
+				"clineCopilotChat.dynamicModels.enabled": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Fetch the Cline catalog live instead of shipping a fixed list. Retired models disappear and new ones appear on the next refresh. Use **Cline Copilot Chat: Refresh Model List** to refresh on demand."
+				},
+				"clineCopilotChat.dynamicModels.refreshHours": {
+					"type": "number",
+					"default": 6,
+					"minimum": 0.25,
+					"markdownDescription": "Hours the live model list stays cached before it is re-fetched. Minimum `0.25` (15 minutes)."
+				},
+				"clineCopilotChat.dynamicModels.catalogBaseUrl": {
+					"type": "string",
+					"default": "https://api.cline.bot",
+					"markdownDescription": "Base URL for the Cline catalog endpoints (`/api/v1/ai/cline/models` and `/api/v1/ai/cline/recommended-models`). Change only for testing or a proxy."
+				},
 				"clineCopilotChat.enabled": {
 					"type": "boolean",
 					"default": true,
@@ -261,6 +285,7 @@
 	"scripts": {
 		"compile": "tsc -p ./",
 		"watch": "tsc -watch -p ./",
+		"check-models": "node scripts/check-models.mjs",
 		"prepackage": "npm run compile",
 		"package": "vsce package",
 		"vscode:prepublish": "npm run compile"

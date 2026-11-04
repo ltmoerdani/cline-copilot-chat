@@ -23,89 +23,175 @@ export interface ResolvedModelMetadata extends ModelLimits {
 // ── ClinePass models ($9.99/mo subscription) ──────────────────────────────
 
 export const CLINEPASS_MODELS: Record<string, ModelLimits> = {
-  "cline-pass/glm-5.2":             { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
-  "cline-pass/kimi-k3":             { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
-  "cline-pass/kimi-k2.7-code":      { contextWindow: 262_144,  maxOutputTokens: 262_144 },
-  "cline-pass/kimi-k2.6":           { contextWindow: 262_144,  maxOutputTokens: 65_536 },
-  "cline-pass/deepseek-v4-pro":     { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
-  "cline-pass/deepseek-v4-flash":   { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
-  "cline-pass/mimo-v2.5":           { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
-  "cline-pass/mimo-v2.5-pro":       { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
-  "cline-pass/minimax-m3":          { contextWindow: 192_000,  maxOutputTokens: 131_072 },
-  "cline-pass/qwen3.8-max":         { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
-  "cline-pass/qwen3.7-max":         { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
-  "cline-pass/qwen3.7-plus":        { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
+  // ── Current ClinePass catalog — synced with Cline 4.1.26 ────────────────
+  // Limits are read from the catalog Cline itself ships (@cline/llms), i.e. the
+  // same numbers the Cline extension uses. Refresh with `npm run check-models`.
+  "cline-pass/kimi-k3.1-pro":              { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "cline-pass/minimax-m3.1-flash":         { contextWindow: 1_048_576, maxOutputTokens: 524_288 },
+  "cline-pass/deepseek-v4.1-flash-1017":   { contextWindow: 1_048_576, maxOutputTokens: 393_216 },
+  "cline-pass/deepseek-v4.1-flash":        { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "cline-pass/mimo-v2.6-flash":            { contextWindow: 1_050_000, maxOutputTokens: 131_072 },
+  "cline-pass/mimo-v2.6-pro":              { contextWindow: 1_050_000, maxOutputTokens: 131_072 },
+  "cline-pass/glm-5.3":                    { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "cline-pass/glm-5.3-flash":              { contextWindow: 1_048_576, maxOutputTokens: 943_717 },
+  "cline-pass/deepseek-v4-pro":            { contextWindow: 1_048_576, maxOutputTokens: 384_000 },
+  "cline-pass/qwen3.8-max":                { contextWindow: 262_144,   maxOutputTokens: 128_000 },
+  "cline-pass/muse-spark-1.3-contributor": { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "cline-pass/kimi-k3":                    { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "cline-pass/minimax-m3":                 { contextWindow: 1_048_576, maxOutputTokens: 512_000 },
+  "cline-pass/qwen3.7-plus":               { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
+  "cline-pass/qwen3.7-max":                { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
+  "cline-pass/glm-5.2":                    { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  // ── Retired from ClinePass ───────────────────────────────────────────────
+  // No longer offered on the subscription. Kept here (guardrail: never delete
+  // bundled metadata) so stale picker selections / cached requests still
+  // resolve limits instead of silently falling back to DEFAULT_LIMITS.
+  "cline-pass/kimi-k2.7-code":             { contextWindow: 262_144,   maxOutputTokens: 262_144 },
+  "cline-pass/kimi-k2.6":                  { contextWindow: 262_144,   maxOutputTokens: 65_536 },
+  "cline-pass/deepseek-v4-flash":          { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
+  "cline-pass/mimo-v2.5":                  { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  "cline-pass/mimo-v2.5-pro":              { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
 };
 
 // ── Cline pay-per-use models (vendor/model format) ────────────────────────
 
 export const CLINE_MODELS: Record<string, ModelLimits> = {
+  // ── Current pay-per-use catalog (verified against /api/v1/models) ────────
+  // Vendor prefixes are the ones Cline actually serves: x-ai/, z-ai/,
+  // moonshotai/, xiaomi/, mistralai/, meta-llama/. Where a model has a
+  // ClinePass twin the numbers come from Cline's own catalog; the rest use
+  // conservative documented values so VS Code truncates history instead of
+  // letting the request fail with a context-length 400.
   // DeepSeek
-  "deepseek/deepseek-v4-flash":     { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
-  "deepseek/deepseek-v4-pro":       { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
-  "deepseek/deepseek-v3":           { contextWindow: 64_000,    maxOutputTokens: 8_192 },
-  "deepseek/deepseek-r1":           { contextWindow: 64_000,    maxOutputTokens: 16_384 },
-  "deepseek/deepseek-chat":         { contextWindow: 64_000,    maxOutputTokens: 8_192 },
+  "deepseek/deepseek-v4.1-flash-1017": { contextWindow: 1_048_576, maxOutputTokens: 393_216 },
+  "deepseek/deepseek-v4.1-flash":      { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "deepseek/deepseek-v4-pro":          { contextWindow: 1_048_576, maxOutputTokens: 384_000 },
+  "deepseek/deepseek-v4-flash":        { contextWindow: 1_000_000, maxOutputTokens: 384_000 },
+  "deepseek/deepseek-chat":            { contextWindow: 64_000,    maxOutputTokens: 8_192 },
+  // Anthropic
+  "anthropic/claude-opus-5.5":         { contextWindow: 200_000,   maxOutputTokens: 64_000 },
+  "anthropic/claude-sonnet-5.5":       { contextWindow: 200_000,   maxOutputTokens: 64_000 },
+  "anthropic/claude-haiku-5.5":        { contextWindow: 200_000,   maxOutputTokens: 32_000 },
+  "anthropic/claude-opus-5":           { contextWindow: 200_000,   maxOutputTokens: 64_000 },
+  "anthropic/claude-fable-5.1":        { contextWindow: 200_000,   maxOutputTokens: 64_000 },
   // OpenAI
-  "openai/gpt-4o":                  { contextWindow: 128_000,   maxOutputTokens: 16_384 },
-  "openai/gpt-5":                   { contextWindow: 256_000,   maxOutputTokens: 16_384 },
-  "openai/o3":                      { contextWindow: 200_000,   maxOutputTokens: 100_000 },
+  "openai/gpt-6.1-terra-pro":          { contextWindow: 200_000,   maxOutputTokens: 64_000 },
+  "openai/gpt-6.1-terra":              { contextWindow: 200_000,   maxOutputTokens: 64_000 },
+  "openai/gpt-5":                      { contextWindow: 256_000,   maxOutputTokens: 16_384 },
+  "openai/o3":                         { contextWindow: 200_000,   maxOutputTokens: 100_000 },
+  "openai/gpt-4o":                     { contextWindow: 128_000,   maxOutputTokens: 16_384 },
   // Google
-  "google/gemini-2.5-pro":          { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
+  "google/gemini-4-argon":             { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
+  "google/gemini-2.5-pro":             { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
   // xAI / Grok
-  "xai/grok-3":                     { contextWindow: 131_072,   maxOutputTokens: 16_384 },
-  "xai/grok-4":                     { contextWindow: 256_000,   maxOutputTokens: 16_384 },
+  "x-ai/grok-4.7":                     { contextWindow: 256_000,   maxOutputTokens: 16_384 },
+  "x-ai/grok-4.6":                     { contextWindow: 256_000,   maxOutputTokens: 16_384 },
+  "x-ai/grok-4.20":                    { contextWindow: 256_000,   maxOutputTokens: 16_384 },
   // Z.ai / GLM
-  "zai/glm-5.2":                    { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  "z-ai/glm-5.3":                      { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "z-ai/glm-5.3-flash":                { contextWindow: 1_048_576, maxOutputTokens: 943_717 },
+  "z-ai/glm-5.2":                      { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   // Moonshot / Kimi
-  "moonshot/kimi-k3":               { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
-  "moonshot/kimi-k2.7-code":        { contextWindow: 262_144,   maxOutputTokens: 262_144 },
-  "moonshot/kimi-k2.6":             { contextWindow: 262_144,   maxOutputTokens: 65_536 },
+  "moonshotai/kimi-k3.1-pro":          { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "moonshotai/kimi-k3":                { contextWindow: 1_048_576, maxOutputTokens: 943_718 },
+  "moonshotai/kimi-k2.7-code":         { contextWindow: 262_144,   maxOutputTokens: 262_144 },
   // MiMo
-  "mimo/mimo-v2.5":                 { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
-  "mimo/mimo-v2.5-pro":             { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  "xiaomi/mimo-v2.6-pro":              { contextWindow: 1_050_000, maxOutputTokens: 131_072 },
+  "xiaomi/mimo-v2.6-flash":            { contextWindow: 1_050_000, maxOutputTokens: 131_072 },
+  "xiaomi/mimo-v2.5-pro":              { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
   // MiniMax
-  "minimax/minimax-m2.5":             { contextWindow: 204_800,    maxOutputTokens: 131_072 },
-  "minimax/minimax-m3":             { contextWindow: 192_000,   maxOutputTokens: 131_072 },
+  "minimax/minimax-m3.1-flash":        { contextWindow: 1_048_576, maxOutputTokens: 524_288 },
+  "minimax/minimax-m3":                { contextWindow: 1_048_576, maxOutputTokens: 512_000 },
+  "minimax/minimax-m2.5":              { contextWindow: 204_800,   maxOutputTokens: 131_072 },
   // Qwen
-  "qwen/qwen3.8-max":              { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
-  "qwen/qwen3.7-max":              { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
-  "qwen/qwen3.7-plus":             { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
+  "qwen/qwen3.8-max-prime":            { contextWindow: 262_144,   maxOutputTokens: 128_000 },
+  "qwen/qwen3.8-max-0902":             { contextWindow: 262_144,   maxOutputTokens: 128_000 },
+  "qwen/qwen3.8-flash":                { contextWindow: 262_144,   maxOutputTokens: 65_536 },
+  "qwen/qwen3.7-max":                  { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
+  "qwen/qwen3.7-plus":                 { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
   // Mistral
-  "mistral/mistral-large":          { contextWindow: 128_000,   maxOutputTokens: 8_192 },
+  "mistralai/mistral-large-4-0":       { contextWindow: 256_000,   maxOutputTokens: 32_000 },
+  "mistralai/mistral-large":           { contextWindow: 128_000,   maxOutputTokens: 8_192 },
   // Meta
-  "meta/llama-4-maverick":          { contextWindow: 1_000_000, maxOutputTokens: 8_192 },
+  "meta-llama/llama-4-maverick":       { contextWindow: 1_000_000, maxOutputTokens: 8_192 },
   // Perplexity
-  "perplexity/sonar-pro":           { contextWindow: 127_072,   maxOutputTokens: 8_192 },
-  // Cohere
-  "cohere/command-r-plus":          { contextWindow: 128_000,   maxOutputTokens: 4_096 },
+  "perplexity/sonar-pro":              { contextWindow: 127_072,   maxOutputTokens: 8_192 },
+  // ── Retired / renamed pay-per-use IDs ───────────────────────────────────
+  // Delisted from the Cline catalog, or superseded by the vendor prefixes
+  // above (xai/ → x-ai/, zai/ → z-ai/, moonshot/ → moonshotai/,
+  // mimo/ → xiaomi/, mistral/ → mistralai/, meta/ → meta-llama/).
+  // Kept for metadata resolution only — never advertised in the picker.
+  "deepseek/deepseek-v3":              { contextWindow: 64_000,    maxOutputTokens: 8_192 },
+  "deepseek/deepseek-r1":              { contextWindow: 64_000,    maxOutputTokens: 16_384 },
+  "xai/grok-3":                        { contextWindow: 131_072,   maxOutputTokens: 16_384 },
+  "xai/grok-4":                        { contextWindow: 256_000,   maxOutputTokens: 16_384 },
+  "zai/glm-5.2":                       { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  "moonshot/kimi-k3":                  { contextWindow: 1_000_000, maxOutputTokens: 131_072 },
+  "moonshot/kimi-k2.7-code":           { contextWindow: 262_144,   maxOutputTokens: 262_144 },
+  "moonshot/kimi-k2.6":                { contextWindow: 262_144,   maxOutputTokens: 65_536 },
+  "mimo/mimo-v2.5":                    { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  "mimo/mimo-v2.5-pro":                { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+  "qwen/qwen3.8-max":                  { contextWindow: 1_000_000, maxOutputTokens: 65_536 },
+  "mistral/mistral-large":             { contextWindow: 128_000,   maxOutputTokens: 8_192 },
+  "meta/llama-4-maverick":             { contextWindow: 1_000_000, maxOutputTokens: 8_192 },
+  "cohere/command-r-plus":             { contextWindow: 128_000,   maxOutputTokens: 4_096 },
 };
 
 const DEFAULT_LIMITS: ModelLimits = { contextWindow: 128_000, maxOutputTokens: 65_536 };
 
-// Vision-capable models (confirmed via official provider docs, Aug 2026)
-// Sources: OpenAI ("all latest models support vision"), xAI (image input docs),
-// Mistral (vision model list), Meta ("natively multimodal"), Kimi (text/image/video),
-// MiniMax M3 ("多模态 Chat 输入"), Alibaba Bailian (vision understanding list).
-// NOTE: MiMo V2.5/V2.5 Pro REMOVED — MiMo-7B is reasoning-only text model, no
-// vision evidence in any official source. DeepSeek V3/V4/R1/Chat are text-only
-// (separate DeepSeek-VL line exists for vision). Cohere Command R+ is text-only
-// (separate Command A Vision model). Perplexity Sonar is text-only search.
-// GLM-5.2 REMOVED — Z.ai docs list Input/Output Modalities as Text only
-// (separate GLM-5V line exists for vision).
+// Vision-capable models.
+// ClinePass entries are taken verbatim from the catalog Cline ships: an entry
+// counts as vision-capable when its `capabilities` array contains "images".
+// Pay-per-use entries follow the provider docs (OpenAI, xAI, Google, Anthropic,
+// Mistral, Meta, Kimi, MiniMax M3, Alibaba Bailian) — text-only families
+// (DeepSeek chat/reasoning line, GLM, Sonar, Command R+, non-VL MiMo) stay out.
 const VISION_CAPABLE_MODELS = new Set([
-  // ClinePass
+  // ClinePass — from Cline's catalog `capabilities`
+  "cline-pass/kimi-k3.1-pro",
+  "cline-pass/minimax-m3.1-flash",
+  "cline-pass/deepseek-v4.1-flash-1017",
+  "cline-pass/deepseek-v4.1-flash",
+  "cline-pass/mimo-v2.6-flash",
+  "cline-pass/mimo-v2.6-pro",
+  "cline-pass/glm-5.3-flash",
+  "cline-pass/qwen3.8-max",
+  "cline-pass/muse-spark-1.3-contributor",
   "cline-pass/kimi-k3",
+  "cline-pass/minimax-m3",
+  "cline-pass/qwen3.7-plus",
+  // ClinePass — retired, kept for cached references
   "cline-pass/kimi-k2.7-code",
   "cline-pass/kimi-k2.6",
-  "cline-pass/minimax-m3",
-  "cline-pass/qwen3.8-max",
-  "cline-pass/qwen3.7-plus",
   // Pay-per-use
+  "anthropic/claude-opus-5.5",
+  "anthropic/claude-sonnet-5.5",
+  "anthropic/claude-haiku-5.5",
+  "anthropic/claude-opus-5",
+  "anthropic/claude-fable-5.1",
+  "openai/gpt-6.1-terra-pro",
+  "openai/gpt-6.1-terra",
   "openai/gpt-4o",
   "openai/gpt-5",
   "openai/o3",
+  "google/gemini-4-argon",
   "google/gemini-2.5-pro",
+  "x-ai/grok-4.7",
+  "x-ai/grok-4.6",
+  "x-ai/grok-4.20",
+  "moonshotai/kimi-k3.1-pro",
+  "moonshotai/kimi-k3",
+  "moonshotai/kimi-k2.7-code",
+  "xiaomi/mimo-v2.6-pro",
+  "xiaomi/mimo-v2.6-flash",
+  "minimax/minimax-m3.1-flash",
+  "minimax/minimax-m3",
+  "qwen/qwen3.8-max-prime",
+  "qwen/qwen3.8-max-0902",
+  "qwen/qwen3.7-plus",
+  "mistralai/mistral-large-4-0",
+  "mistralai/mistral-large",
+  "meta-llama/llama-4-maverick",
+  // Pay-per-use — retired, kept for cached references
   "xai/grok-3",
   "xai/grok-4",
   "moonshot/kimi-k3",
@@ -113,42 +199,79 @@ const VISION_CAPABLE_MODELS = new Set([
   "moonshot/kimi-k2.6",
   "minimax/minimax-m3",
   "qwen/qwen3.8-max",
-  "qwen/qwen3.7-plus",
   "mistral/mistral-large",
   "meta/llama-4-maverick",
 ]);
 
-// All models support reasoning/thinking mode
+// All ClinePass models expose reasoning/thinking controls in Cline's catalog;
+// pay-per-use entries list the reasoning-capable families.
 const REASONING_MODELS = new Set([
   // ClinePass
-  "cline-pass/glm-5.2",
+  "cline-pass/kimi-k3.1-pro",
+  "cline-pass/minimax-m3.1-flash",
+  "cline-pass/deepseek-v4.1-flash-1017",
+  "cline-pass/deepseek-v4.1-flash",
+  "cline-pass/mimo-v2.6-flash",
+  "cline-pass/mimo-v2.6-pro",
+  "cline-pass/glm-5.3",
+  "cline-pass/glm-5.3-flash",
+  "cline-pass/deepseek-v4-pro",
+  "cline-pass/qwen3.8-max",
+  "cline-pass/muse-spark-1.3-contributor",
   "cline-pass/kimi-k3",
+  "cline-pass/minimax-m3",
+  "cline-pass/qwen3.7-max",
+  "cline-pass/qwen3.7-plus",
+  "cline-pass/glm-5.2",
+  // ClinePass — retired, kept for cached references
   "cline-pass/kimi-k2.7-code",
   "cline-pass/kimi-k2.6",
-  "cline-pass/deepseek-v4-pro",
   "cline-pass/deepseek-v4-flash",
   "cline-pass/mimo-v2.5",
   "cline-pass/mimo-v2.5-pro",
-  "cline-pass/minimax-m3",
-  "cline-pass/qwen3.8-max",
-  "cline-pass/qwen3.7-max",
-  "cline-pass/qwen3.7-plus",
   // Pay-per-use
-  "deepseek/deepseek-v4-flash",
+  "deepseek/deepseek-v4.1-flash-1017",
+  "deepseek/deepseek-v4.1-flash",
   "deepseek/deepseek-v4-pro",
-  "deepseek/deepseek-r1",
+  "deepseek/deepseek-v4-flash",
+  "anthropic/claude-opus-5.5",
+  "anthropic/claude-sonnet-5.5",
+  "anthropic/claude-opus-5",
+  "anthropic/claude-fable-5.1",
+  "openai/gpt-6.1-terra-pro",
+  "openai/gpt-6.1-terra",
   "openai/o3",
+  "google/gemini-4-argon",
   "google/gemini-2.5-pro",
+  "x-ai/grok-4.7",
+  "x-ai/grok-4.6",
+  "x-ai/grok-4.20",
+  "z-ai/glm-5.3",
+  "z-ai/glm-5.3-flash",
+  "z-ai/glm-5.2",
+  "moonshotai/kimi-k3.1-pro",
+  "moonshotai/kimi-k3",
+  "moonshotai/kimi-k2.7-code",
+  "xiaomi/mimo-v2.6-pro",
+  "xiaomi/mimo-v2.6-flash",
+  "xiaomi/mimo-v2.5-pro",
+  "minimax/minimax-m3.1-flash",
+  "minimax/minimax-m3",
+  "minimax/minimax-m2.5",
+  "qwen/qwen3.8-max-prime",
+  "qwen/qwen3.8-max-0902",
+  "qwen/qwen3.8-flash",
+  "qwen/qwen3.7-max",
+  "qwen/qwen3.7-plus",
+  // Pay-per-use — retired, kept for cached references
+  "deepseek/deepseek-r1",
   "zai/glm-5.2",
   "moonshot/kimi-k3",
   "moonshot/kimi-k2.7-code",
   "moonshot/kimi-k2.6",
   "mimo/mimo-v2.5",
   "mimo/mimo-v2.5-pro",
-  "minimax/minimax-m2.5",
   "qwen/qwen3.8-max",
-  "qwen/qwen3.7-max",
-  "qwen/qwen3.7-plus",
 ]);
 
 /**
